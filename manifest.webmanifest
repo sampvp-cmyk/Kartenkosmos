@@ -1,7 +1,7 @@
 {
-  "name": "Wizard Block 2.0",
-  "short_name": "Wizard 2.0",
-  "description": "Punkteblock für das Kartenspiel Wizard",
+  "name": "Spieleabend",
+  "short_name": "Spieleabend",
+  "description": "Wizard Block und Arschmallows in einer App",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

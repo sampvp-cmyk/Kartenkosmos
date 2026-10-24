@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Spieleabend" />
+  <meta name="theme-color" content="#0f1024" />
+  <title>Wizard Block</title>
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png" />
+  <link rel="manifest" href="../manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #0f1024; }
+    body { color: #fff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; min-height: 100vh; }
+    button, input, select { font-family: inherit; }
+    input { -webkit-user-select: text; user-select: text; }
+    .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; background-image:
+      radial-gradient(1px 1px at 10% 12%, #fff8, transparent), radial-gradient(1px 1px at 30% 6%, #fff6, transparent),
+      radial-gradient(1.5px 1.5px at 55% 15%, #fff9, transparent), radial-gradient(1px 1px at 72% 8%, #fff6, transparent),
+      radial-gradient(1px 1px at 88% 18%, #fff8, transparent), radial-gradient(1px 1px at 20% 48%, #fff4, transparent),
+      radial-gradient(1px 1px at 80% 60%, #fff5, transparent), radial-gradient(1.5px 1.5px at 45% 80%, #fff5, transparent); }
+    .glow { position: fixed; left: 50%; top: -30vh; width: 140vw; height: 70vh; transform: translateX(-50%); pointer-events: none; z-index: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(124, 92, 255, 0.28) 0%, rgba(124, 92, 255, 0.08) 45%, transparent 70%); }
+    #app { position: relative; z-index: 1; }
+    /* nur Deckkraft: ein transform würde die fixierte Leiste unten während der Animation verschieben */
+    @keyframes pop { from { opacity: 0; } to { opacity: 1; } }
+    .pop { animation: pop 0.2s ease; }
+    .block-table { border-collapse: separate; border-spacing: 0; font-size: 14px; }
+    .block-table th, .block-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #ffffff14; white-space: nowrap; }
+    .block-table th { position: sticky; top: 0; background: #1b1c3a; font-weight: 600; }
+    .block-table td:first-child, .block-table th:first-child { position: sticky; left: 0; background: #1b1c3a; z-index: 1; }
+  </style>
+</head>
+<body>
+<div class="stars"></div><div class="glow"></div>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script type="text/babel">
+
+const { useState, useEffect, useRef } = React;
+
+const STORAGE_KEY = "wizard-block-2-v1"; // eigener Speicher, getrennt vom ursprünglichen Wizard Block
+
+// ── Regeln & Editionen ─────────────────────────────────────────────────────────
+const RULES = {
+  standard:  { name: "Standard",              desc: "Keine Einschränkungen" },
+  aufgehen:  { name: "Aufgehen",              desc: "Die Anzahl der angesagten Stiche muss aufgehen." },
+  plusminus: { name: "Plus / Minus",          desc: "Die Anzahl der angesagten Stiche darf nicht aufgehen. Es muss immer mindestens 1 Stich mehr oder weniger angesagt werden, als es in der Runde gibt." },
+  geheim:    { name: "Geheimes Ansagen",      desc: "Die Ansagen werden geheim abgegeben und erst beim Ergebnis aufgedeckt." },
+  pmgeheim:  { name: "Plus / Minus (geheim)", desc: "Geheime Ansagen, und die Anzahl der angesagten Stiche darf nicht aufgehen." },
+};
+const isSecret = (rule) => rule === "geheim" || rule === "pmgeheim";
+const isPlusMinus = (rule) => rule === "plusminus" || rule === "pmgeheim";
+
+// Sondereditionen bringen u. a. Bombe (Stich geht an niemanden) und Wolke (Ansage ±1) mit.
+const EDITIONS = {
+  standard: { name: "Standard",                   specials: false, deck: 60 },
+  jubi20:   { name: "Jubiläumsedition (20 Jahre)", specials: true,  deck: 66 },
+  jahre25:  { name: "25-Jahre Edition",            specials: true,  deck: 66 },
+  jahre30:  { name: "30-Jahre Edition",            specials: true,  deck: 66 },
+};
+
+const TRUMPS = [
+  { id: "blau",   name: "Blau",   color: "#3b82f6" },
+  { id: "gruen",  name: "Grün",   color: "#22c55e" },
+  { id: "rot",    name: "Rot",    color: "#ef4444" },
+  { id: "gelb",   name: "Gelb",   color: "#eab308" },
+  { id: "keiner", name: "Keiner", color: "#6b7280" },
+];
+
+const C = {
+  card: "#1b1c3a", card2: "#24264d", line: "#ffffff1a", text: "#fff", dim: "#a5a8d6",
+  accent: "#8b6cff", gold: "#ffcc4d", good: "#34d399", bad: "#f87171",
+};
+
+// ── Spiellogik ────────────────────────────────────────────────────────────────
+function roundCount(game) {
+  const n = game.players.length;
+  if (!n) return 0;
+  if (game.roundsMode === "custom") return Math.max(1, game.customRounds || 1);
+  const decks = game.decks || 1; // ab 7 Spielern kann mit zwei Decks gespielt werden
+  if (game.roundsMode === "all") return Math.max(1, Math.floor((EDITIONS[game.edition].deck * decks) / n));
+  return Math.max(1, Math.floor((60 * decks) / n));
+}
+
+// Der letzte Spieler gibt in Runde 1, danach wandert der Geber reihum.
+// Spiele mit dealerFirst stammen aus einer Version, in der der Erste Geber war.
+const dealerOf = (game, r) => ((game.dealerFirst ? 0 : game.players.length - 1) + r) % game.players.length;
+
+const effectiveBid = (round, p) =>
+  round.bids[p] + (round.cloud && round.cloud.player === p ? round.cloud.delta : 0);
+
+function roundScore(round, p) {
+  const bid = effectiveBid(round, p);
+  const tricks = round.tricks[p];
+  return bid === tricks ? 20 + 10 * tricks : -10 * Math.abs(bid - tricks);
+}
+
+const tricksInRound = (round, r) => r + 1 - (round.bomb ? 1 : 0);
+
+function totals(game) {
+  const t = game.players.map(() => 0);
+  game.rounds.forEach((rd) => { if (rd && rd.done) game.players.forEach((_, p) => { t[p] += roundScore(rd, p); }); });
+  return t;
+}
+
+const doneCount = (game) => game.rounds.filter((r) => r && r.done).length;
+const isFinished = (game) => doneCount(game) >= roundCount(game);
+
+// Gleichstand teilt sich den Platz, der nächste Punktestand bekommt den nächsten Platz (wie in der Vorlage).
+function ranking(game) {
+  const t = totals(game);
+  const order = game.players.map((name, p) => ({ name, p, score: t[p] })).sort((a, b) => b.score - a.score);
+  const distinct = [...new Set(order.map((o) => o.score))];
+  return order.map((o) => ({ ...o, place: distinct.indexOf(o.score) + 1 }));
+}
+
+const medal = (place) => ["🥇", "🥈", "🥉"][place - 1] || `${place}.`;
+
+function emptyRound(n) {
+  return { bids: Array(n).fill(0), tricks: Array(n).fill(0), trump: null, bomb: false, cloud: null, bidsDone: false, done: false };
+}
+
+const formatDate = (ts) => new Date(ts).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+// ── Speicher ──────────────────────────────────────────────────────────────────
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { games: [] };
+}
+function saveState(s) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch (e) {}
+}
+// Browser bitten, den Speicher nicht automatisch zu leeren (wichtig für die Home-Bildschirm-App)
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+
+// ── UI-Bausteine ──────────────────────────────────────────────────────────────
+const page = { maxWidth: 560, margin: "0 auto", padding: "calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 110px)" };
+
+function TopBar({ left, title, right }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", minHeight: 48, marginBottom: 12 }}>
+      <div style={{ justifySelf: "start" }}>{left}</div>
+      <div style={{ fontSize: 19, fontWeight: 600, textAlign: "center", maxWidth: "52vw", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+      <div style={{ justifySelf: "end" }}>{right}</div>
+    </div>
+  );
+}
+
+function IconBtn({ children, onClick, label }) {
+  return (
+    <button aria-label={label} onClick={onClick} style={{ minWidth: 40, height: 40, padding: "0 12px", borderRadius: 20, border: `1px solid ${C.line}`, background: C.card, color: C.text, fontSize: 16, cursor: "pointer" }}>
+      {children}
+    </button>
+  );
+}
+
+function Section({ title, children, footer }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      {title && <div style={{ color: C.dim, fontSize: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.6, margin: "0 6px 6px" }}>{title}</div>}
+      <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.line}`, overflow: "hidden" }}>{children}</div>
+      {footer && <div style={{ color: C.dim, fontSize: 13, margin: "8px 6px 0", lineHeight: 1.4 }}>{footer}</div>}
+    </div>
+  );
+}
+
+function Row({ children, onClick, last }) {
+  return (
+    <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 50, padding: "8px 14px", borderBottom: last ? "none" : `1px solid ${C.line}`, cursor: onClick ? "pointer" : "default" }}>
+      {children}
+    </div>
+  );
+}
+
+function BigButton({ children, onClick, disabled, color = C.accent, style }) {
+  return (
+    <button onClick={disabled ? undefined : onClick} disabled={disabled}
+      style={{ flex: 1, height: 50, borderRadius: 14, border: "none", background: disabled ? "#3a3c66" : color, color: disabled ? "#8f92c4" : "#fff", fontSize: 17, fontWeight: 600, cursor: disabled ? "default" : "pointer", ...style }}>
+      {children}
+    </button>
+  );
+}
+
+function BottomBar({ children, hint, hintColor }) {
+  return (
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 5, background: "linear-gradient(transparent, #0f1024 30%)", padding: "24px 16px calc(env(safe-area-inset-bottom) + 14px)" }}>
+      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+        {hint && <div style={{ textAlign: "center", fontSize: 14, marginBottom: 8, color: hintColor || C.dim, fontWeight: 500 }}>{hint}</div>}
+        <div style={{ display: "flex", gap: 10 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Stepper({ value, onChange, min = 0, max }) {
+  const btn = (txt, d, label, dis) => (
+    <button aria-label={label} disabled={dis} onClick={() => onChange(value + d)}
+      style={{ width: 44, height: 38, border: "none", background: dis ? "#2c2e57" : C.card2, color: dis ? "#5e6199" : C.text, fontSize: 22, fontWeight: 600, cursor: dis ? "default" : "pointer" }}>{txt}</button>
+  );
+  return (
+    <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${C.line}` }}>
+      {btn("−", -1, "Verringern", value <= min)}
+      <div style={{ width: 1, background: C.line }} />
+      {btn("+", 1, "Erhöhen", max !== undefined && value >= max)}
+    </div>
+  );
+}
+
+function Segmented({ options, value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 4, background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: 4 }}>
+      {options.map((o) => (
+        <button key={o.id} onClick={() => onChange(o.id)}
+          style={{ flex: 1, minWidth: 0, height: 36, borderRadius: 9, border: "none", fontSize: 14, fontWeight: 500, cursor: "pointer", padding: "0 4px",
+            background: value === o.id ? (o.color || C.accent) : "transparent", color: value === o.id ? "#fff" : C.dim }}>
+          {o.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Sheet({ title, onClose, children }) {
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 20, background: "#0008", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div className="pop" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "#16173a", borderRadius: "20px 20px 0 0", border: `1px solid ${C.line}`, padding: "18px 16px calc(env(safe-area-inset-bottom) + 18px)", maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ fontSize: 18, fontWeight: 600, textAlign: "center", marginBottom: 14 }}>{title}</div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Choice({ label, desc, selected, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display: "block", width: "100%", textAlign: "left", padding: "12px 14px", marginBottom: 8, borderRadius: 14, cursor: "pointer",
+      border: `2px solid ${selected ? C.accent : C.line}`, background: selected ? "#8b6cff22" : C.card, color: C.text }}>
+      <div style={{ fontSize: 16, fontWeight: 600 }}>{label}</div>
+      {desc && <div style={{ fontSize: 13, color: C.dim, marginTop: 3, lineHeight: 1.35 }}>{desc}</div>}
+    </button>
+  );
+}
+
+// ── Spieleliste ───────────────────────────────────────────────────────────────
+function GameList({ games, onOpen, onNew, onSettings }) {
+  const sorted = [...games].sort((a, b) => b.created - a.created);
+  return (
+    <div style={page}>
+      <TopBar left={<div style={{ display: "flex", gap: 8 }}><IconBtn label="Startmenü" onClick={() => { location.href = "../"; }}>🏠</IconBtn><IconBtn label="Einstellungen" onClick={onSettings}>⚙️</IconBtn></div>} title="🧙 Wizard Block" right={<IconBtn label="Neues Spiel" onClick={onNew}>＋</IconBtn>} />
+      {sorted.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: C.dim }}>
+          <div style={{ fontSize: 64, marginBottom: 12 }}>🔮</div>
+          <div style={{ fontSize: 18, color: C.text, marginBottom: 6 }}>Noch keine Spiele</div>
+          <div style={{ marginBottom: 24 }}>Leg ein neues Spiel an und los geht's.</div>
+          <BigButton onClick={onNew} style={{ width: "100%", maxWidth: 260 }}>Neues Spiel</BigButton>
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+        {sorted.map((g) => {
+          const fin = isFinished(g);
+          const winners = fin ? ranking(g).filter((r) => r.place === 1).map((r) => r.name) : [];
+          return (
+            <button key={g.id} onClick={() => onOpen(g.id)}
+              style={{ background: C.card, border: `1px solid ${fin ? "#ffcc4d44" : C.line}`, borderRadius: 18, padding: "14px 12px", color: C.text, cursor: "pointer", textAlign: "center", minHeight: 140, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 15, color: C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</div>
+              <div style={{ fontSize: fin ? 19 : 26, fontWeight: 600, margin: "10px 0", lineHeight: 1.2 }}>
+                {fin ? `🥇 ${winners.join(", ")}` : `${doneCount(g)} / ${roundCount(g)}`}
+              </div>
+              <div style={{ fontSize: 13, color: C.dim }}>{g.players.length} Spieler · {formatDate(g.created)}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Neues Spiel & Einstellungen ───────────────────────────────────────────────
+const DEFAULTS = { rule: "standard", edition: "standard", roundsMode: "standard", customRounds: 10, players: [] };
+
+const textInput = { flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 16, padding: "6px 0" };
+
+// Regel, Edition und Rundenanzahl – gleich im neuen Spiel und in den Einstellungen
+function GameOptions({ opts, setOpts, playerCount, children }) {
+  const [sheet, setSheet] = useState(null);
+  const { rule, edition, roundsMode, customRounds } = opts;
+  const set = (patch) => setOpts({ ...opts, ...patch });
+  const roundsLabel = roundsMode === "custom" ? `${customRounds} Runden` : roundsMode === "all" ? "Alle Karten verteilen" : "Standard";
+  const preview = { players: Array(playerCount).fill(""), edition, roundsMode, customRounds };
+
+  return (
+    <>
+      <Section title="Allgemein">
+        {children}
+        <Row onClick={() => setSheet("rule")}><span style={{ flex: 1 }}>Regel</span><span style={{ color: C.dim }}>{RULES[rule].name} ›</span></Row>
+        <Row onClick={() => setSheet("edition")}><span style={{ flex: 1 }}>Edition</span><span style={{ color: C.dim, textAlign: "right" }}>{EDITIONS[edition].name} ›</span></Row>
+        <Row onClick={() => setSheet("rounds")} last><span style={{ flex: 1 }}>Rundenanzahl</span><span style={{ color: C.dim }}>{roundsLabel}{playerCount >= 3 ? ` (${roundCount(preview)})` : ""} ›</span></Row>
+      </Section>
+
+      {sheet === "rule" && (
+        <Sheet title="Regel wählen" onClose={() => setSheet(null)}>
+          {Object.entries(RULES).map(([id, r]) => <Choice key={id} label={r.name} desc={r.desc} selected={rule === id} onClick={() => { set({ rule: id }); setSheet(null); }} />)}
+        </Sheet>
+      )}
+      {sheet === "edition" && (
+        <Sheet title="Edition auswählen" onClose={() => setSheet(null)}>
+          {Object.entries(EDITIONS).map(([id, e]) => (
+            <Choice key={id} label={e.name} desc={e.specials ? "Mit Sonderkarten: Bombe 💣 und Wolke ☁️ werden beim Ergebnis berücksichtigt." : "Klassisches Spiel mit 60 Karten."}
+              selected={edition === id} onClick={() => { set({ edition: id }); setSheet(null); }} />
+          ))}
+        </Sheet>
+      )}
+      {sheet === "rounds" && (
+        <Sheet title="Wähle die Rundenanzahl" onClose={() => setSheet(null)}>
+          <Choice label="Standard" desc="60 Karten ÷ Spieler (3 → 20, 4 → 15, 5 → 12, 6 → 10, 7 → 8, 8 → 7 Runden …)" selected={roundsMode === "standard"} onClick={() => { set({ roundsMode: "standard" }); setSheet(null); }} />
+          <Choice label="Alle Karten verteilen" desc={`Alle ${EDITIONS[edition].deck} Karten der Edition werden verteilt.`} selected={roundsMode === "all"} onClick={() => { set({ roundsMode: "all" }); setSheet(null); }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, border: `2px solid ${roundsMode === "custom" ? C.accent : C.line}`, background: C.card }}>
+            <div style={{ flex: 1 }} onClick={() => set({ roundsMode: "custom" })}>
+              <div style={{ fontWeight: 600 }}>Eigene Anzahl</div>
+              <div style={{ fontSize: 13, color: C.dim }}>{customRounds} Runden</div>
+            </div>
+            <Stepper value={customRounds} min={1} max={30} onChange={(v) => set({ customRounds: v, roundsMode: "custom" })} />
+          </div>
+        </Sheet>
+      )}
+    </>
+  );
+}
+
+// Bearbeitbare Spielerliste; Reihenfolge per Drag & Drop am Griff ⠿ (Maus und Touch)
+function PlayerRows({ players, setPlayers, showDealer }) {
+  const rowRefs = useRef([]);
+  const [drag, setDrag] = useState(null);
+  const setPlayer = (i, v) => setPlayers(players.map((p, j) => (j === i ? v : p)));
+  // Geber ist immer der Letzte: Reihe so drehen, dass Spieler i unten steht – die Sitzreihenfolge bleibt gleich
+  const makeDealer = (i) => setPlayers([...players.slice(i + 1), ...players.slice(0, i + 1)]);
+
+  const startDrag = (i) => (e) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDrag(i);
+  };
+  const moveDrag = (e) => {
+    if (drag === null) return;
+    let target = drag;
+    rowRefs.current.forEach((el, j) => {
+      if (!el || j >= players.length) return;
+      const r = el.getBoundingClientRect();
+      if (e.clientY >= r.top && e.clientY <= r.bottom) target = j;
+    });
+    if (target === drag) return;
+    const next = [...players];
+    const [moved] = next.splice(drag, 1);
+    next.splice(target, 0, moved);
+    setPlayers(next);
+    setDrag(target);
+  };
+  const endDrag = () => setDrag(null);
+
+  return (
+    <>
+      {players.map((p, i) => (
+        <div key={i} ref={(el) => (rowRefs.current[i] = el)}
+          style={{ background: drag === i ? "#8b6cff33" : "transparent", boxShadow: drag === i ? `inset 0 0 0 2px ${C.accent}` : "none", transition: "background .15s" }}>
+          <Row>
+            <button aria-label="Entfernen" onClick={() => setPlayers(players.filter((_, j) => j !== i))} style={{ width: 26, height: 26, borderRadius: 13, border: "none", background: C.bad, color: "#fff", fontSize: 18, lineHeight: "26px", cursor: "pointer", flexShrink: 0 }}>−</button>
+            <input style={textInput} autoComplete="off" placeholder={`Spieler ${i + 1}`} value={p} onChange={(e) => setPlayer(i, e.target.value)} />
+            {showDealer && p.trim() && (i === players.map((x) => x.trim()).findLastIndex(Boolean)
+              ? <span style={{ fontSize: 12, fontWeight: 600, color: "#1b1c3a", background: C.gold, borderRadius: 10, padding: "3px 8px" }}>Geber</span>
+              : <button aria-label={`${p} als Geber`} onClick={() => makeDealer(i)}
+                  style={{ fontSize: 12, color: C.dim, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 10, padding: "2px 8px", cursor: "pointer" }}>Geber</button>)}
+            <span aria-label="Verschieben" role="button" onPointerDown={startDrag(i)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
+              style={{ touchAction: "none", cursor: drag === null ? "grab" : "grabbing", color: drag === i ? C.text : C.dim, fontSize: 24, lineHeight: 1, padding: "6px 4px 6px 10px", userSelect: "none", WebkitUserSelect: "none" }}>⠿</span>
+          </Row>
+        </div>
+      ))}
+      <Row onClick={() => setPlayers([...players, ""])} last>
+        <span style={{ width: 26, height: 26, borderRadius: 13, background: C.good, color: "#fff", fontSize: 18, lineHeight: "26px", textAlign: "center" }}>+</span>
+        <span style={{ color: C.good }}>Neuen Spieler hinzufügen</span>
+      </Row>
+    </>
+  );
+}
+
+function NewGame({ defaults, onCancel, onCreate }) {
+  const favorites = defaults.players.map((p) => p.trim()).filter(Boolean);
+  const [name, setName] = useState(() => formatDate(Date.now()));
+  const [opts, setOpts] = useState({ rule: defaults.rule, edition: defaults.edition, roundsMode: defaults.roundsMode, customRounds: defaults.customRounds });
+  const [players, setPlayers] = useState(favorites.length ? [] : ["", "", ""]);
+  const [error, setError] = useState("");
+
+  const clean = players.map((p) => p.trim()).filter(Boolean);
+  const n = clean.length;
+  const picked = (f) => clean.some((p) => p.toLowerCase() === f.toLowerCase());
+
+  // Standardspieler per Tipp an- und abwählen; neue landen hinten (= Geber)
+  const toggleFavorite = (f) => {
+    setError("");
+    if (picked(f)) setPlayers(players.filter((p) => p.trim().toLowerCase() !== f.toLowerCase()));
+    else setPlayers([...players.filter((p) => p.trim()), f]);
+  };
+
+  const [askDecks, setAskDecks] = useState(false);
+
+  const create = (decks) => {
+    if (!name.trim()) return setError("Du musst einen Namen eingeben.");
+    if (n < 3) return setError("Wizard spielt man mit mindestens 3 Spielern.");
+    if (new Set(clean.map((p) => p.toLowerCase())).size !== n) return setError("Jeder Spieler braucht einen eigenen Namen.");
+    if (n > 6 && !decks) return setAskDecks(true); // mehr Spieler als erlaubt: erst nach den Decks fragen
+    onCreate({ id: String(Date.now()), name: name.trim(), ...opts, decks: decks || 1, players: clean, rounds: [], created: Date.now() });
+  };
+  const roundsWith = (decks) => roundCount({ ...opts, players: clean, decks });
+
+  return (
+    <div style={page} className="pop">
+      <TopBar left={<IconBtn label="Spiele" onClick={onCancel}>‹ Spiele</IconBtn>} title="Neues Spiel" />
+      <GameOptions opts={opts} setOpts={setOpts} playerCount={n}>
+        <Row><span style={{ color: C.dim, width: 64 }}>Name</span><input style={textInput} autoComplete="off" placeholder="z. B. Spieleabend" value={name} onChange={(e) => { setName(e.target.value); setError(""); }} /></Row>
+      </GameOptions>
+
+      {favorites.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ color: C.dim, fontSize: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.6, margin: "0 6px 8px" }}>Standardspieler – antippen zum Auswählen</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {favorites.map((f) => {
+              const on = picked(f);
+              return (
+                <button key={f} onClick={() => toggleFavorite(f)}
+                  style={{ padding: "8px 14px", borderRadius: 20, fontSize: 15, cursor: "pointer", border: `1px solid ${on ? C.accent : C.line}`, background: on ? C.accent : C.card, color: on ? "#fff" : C.dim }}>
+                  {on ? "✓ " : "+ "}{f}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <Section title={`Spieler (${n})`} footer="Gib die Spieler am besten in der Reihenfolge ein, in der ihr sitzt – mit ⠿ kannst du sie verschieben. Der Spieler ganz unten ist in Runde 1 der Geber – tippe bei einem anderen auf „Geber“, dann rutscht er nach unten und die Reihe rückt entsprechend nach. Mehr als 6 Spieler gehen auch – dann gibt es entsprechend weniger Runden.">
+        <PlayerRows players={players} setPlayers={(p) => { setPlayers(p); setError(""); }} showDealer />
+      </Section>
+
+      {error && <div style={{ background: "#f8717122", border: `1px solid ${C.bad}`, color: "#fecaca", borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "center" }}>{error}</div>}
+      <BigButton onClick={() => create()} style={{ width: "100%" }}>Spiel erstellen</BigButton>
+
+      {askDecks && (
+        <Sheet title={`${n} Spieler – spielt ihr mit zwei Decks?`} onClose={() => setAskDecks(false)}>
+          <div style={{ color: C.dim, textAlign: "center", marginBottom: 12, lineHeight: 1.4 }}>
+            Wizard ist eigentlich für 3 bis 6 Spieler. Mit mehr Spielern gibt es mit einem Deck nur wenige Runden.
+          </div>
+          <div style={{ background: "#ffcc4d1a", border: "1px solid #ffcc4d55", borderRadius: 14, padding: "12px 14px", marginBottom: 16, fontSize: 14, lineHeight: 1.45 }}>
+            💡 <b>Empfehlung:</b> Nehmt zwei unterschiedliche Decks mit verschiedenen Kartenrückseiten bzw. Farben – zum Beispiel das Standard-Deck und die <b>Wizard Junior Edition</b> dazugemischt. So kann man die Karten nach dem Spiel leicht wieder auseinandersortieren.
+          </div>
+          <Choice label={`🃏🃏 Mit zwei Decks spielen (${roundsWith(2)} Runden)`} onClick={() => { setAskDecks(false); create(2); }} />
+          <Choice label={`🃏 Mit einem Deck weiterspielen (${roundsWith(1)} Runden)`} onClick={() => { setAskDecks(false); create(1); }} />
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+// Änderungen sind erst ein Entwurf und gelten nach „Speichern“
+function Settings({ defaults, setDefaults, onBack }) {
+  const [draft, setDraft] = useState(defaults);
+  const [saved, setSaved] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const favorites = draft.players.map((p) => p.trim()).filter(Boolean);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(defaults);
+  const edit = (d) => { setDraft(d); setSaved(false); };
+  const save = () => { setDefaults({ ...draft, players: favorites }); setDraft({ ...draft, players: favorites }); setSaved(true); };
+
+  return (
+    <div style={page} className="pop">
+      <TopBar left={<IconBtn label="Spiele" onClick={() => (dirty ? setConfirmLeave(true) : onBack())}>‹ Spiele</IconBtn>} title="Einstellungen" />
+      <div style={{ color: C.dim, fontSize: 14, margin: "0 6px 14px", lineHeight: 1.4 }}>Diese Werte sind bei jedem neuen Spiel schon vorausgewählt. Sie bleiben auf diesem Gerät gespeichert, auch in der App auf dem Home-Bildschirm.</div>
+      <GameOptions opts={draft} setOpts={edit} playerCount={favorites.length} />
+      <Section title="Standardspieler" footer="Standardspieler erscheinen beim neuen Spiel als Liste zum Antippen.">
+        <PlayerRows players={draft.players} setPlayers={(players) => edit({ ...draft, players })} />
+      </Section>
+
+      <BottomBar hint={dirty ? "Nicht gespeicherte Änderungen" : saved ? "Gespeichert ✓" : null} hintColor={dirty ? C.gold : C.good}>
+        <BigButton disabled={!dirty} onClick={save}>{dirty || !saved ? "Speichern" : "Gespeichert ✓"}</BigButton>
+      </BottomBar>
+
+      {confirmLeave && (
+        <Sheet title="Änderungen speichern?" onClose={() => setConfirmLeave(false)}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <BigButton color={C.card2} onClick={onBack}>Verwerfen</BigButton>
+            <BigButton onClick={() => { save(); onBack(); }}>Speichern</BigButton>
+          </div>
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+// ── Spielübersicht ────────────────────────────────────────────────────────────
+function GameView({ game, onBack, onOpenRound, onDelete, justFinished, onEndSeen }) {
+  const [tab, setTab] = useState("stand");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const total = roundCount(game);
+  const rank = ranking(game);
+  const nextRound = Math.min(doneCount(game), total - 1);
+  const fin = isFinished(game);
+
+  const status = (r) => {
+    const rd = game.rounds[r];
+    if (rd && rd.done) return "✅";
+    if (rd && rd.bidsDone) return "🃏";
+    return "🔮";
+  };
+
+  return (
+    <div style={page} className="pop">
+      <TopBar left={<IconBtn label="Spiele" onClick={onBack}>‹ Spiele</IconBtn>} title={game.name} />
+
+      <div style={{ marginBottom: 16 }}>
+        <Segmented value={tab} onChange={setTab} options={[{ id: "stand", name: "Stand" }, { id: "block", name: "Block" }, { id: "info", name: "Info" }]} />
+      </div>
+
+      {tab === "stand" && (
+        <>
+          <Section title={fin ? "Endstand" : `Stand nach ${doneCount(game)} von ${total} Runden`}>
+            {rank.map((r, i) => (
+              <Row key={r.p} last={i === rank.length - 1}>
+                <span style={{ width: 34, fontSize: r.place <= 3 ? 22 : 16, textAlign: "center", color: C.dim }}>{medal(r.place)}</span>
+                <span style={{ flex: 1, fontSize: 17 }}>{r.name}</span>
+                <span style={{ fontSize: 19, fontWeight: 600, color: r.score < 0 ? C.bad : C.text }}>{r.score}</span>
+              </Row>
+            ))}
+          </Section>
+          <Section title="Runden">
+            {Array.from({ length: total }, (_, r) => (
+              <Row key={r} onClick={() => onOpenRound(r)} last={r === total - 1}>
+                <span style={{ flex: 1 }}>Runde {r + 1}</span>
+                <span style={{ color: C.dim, fontSize: 13 }}>Geber: {game.players[dealerOf(game, r)]}</span>
+                <span style={{ width: 28, textAlign: "center" }}>{status(r)}</span>
+              </Row>
+            ))}
+          </Section>
+        </>
+      )}
+
+      {tab === "block" && <ScoreBlock game={game} onOpenRound={onOpenRound} />}
+
+      {tab === "info" && (
+        <>
+          <Section title="Allgemein">
+            <Row><span style={{ flex: 1 }}>Regel</span><span style={{ color: C.dim }}>{RULES[game.rule].name}</span></Row>
+            <Row><span style={{ flex: 1 }}>Edition</span><span style={{ color: C.dim, textAlign: "right" }}>{EDITIONS[game.edition].name}</span></Row>
+            <Row><span style={{ flex: 1 }}>Runden</span><span style={{ color: C.dim }}>{total}</span></Row>
+            <Row><span style={{ flex: 1 }}>Decks</span><span style={{ color: C.dim }}>{game.decks === 2 ? "Zwei Decks" : "Ein Deck"}</span></Row>
+            <Row last><span style={{ flex: 1 }}>Erstellt</span><span style={{ color: C.dim }}>{formatDate(game.created)}</span></Row>
+          </Section>
+          <Section title="Punkte" footer="Richtig angesagt: 20 Punkte + 10 pro Stich. Daneben: −10 Punkte pro Stich Abweichung.">
+            <Row last><span style={{ flex: 1 }}>Bombe 💣 / Wolke ☁️</span><span style={{ color: C.dim }}>{EDITIONS[game.edition].specials ? "an" : "aus"}</span></Row>
+          </Section>
+          <BigButton color="#7f1d1d" onClick={() => setConfirmDelete(true)} style={{ width: "100%" }}>Spiel löschen</BigButton>
+        </>
+      )}
+
+      {!fin && tab !== "info" && (
+        <BottomBar>
+          <BigButton onClick={() => onOpenRound(nextRound)}>
+            {game.rounds[nextRound] && game.rounds[nextRound].bidsDone ? `Runde ${nextRound + 1}: Ergebnis eintragen` : `Runde ${nextRound + 1} starten`}
+          </BigButton>
+        </BottomBar>
+      )}
+
+      {justFinished && fin && (
+        <Sheet title="🏆 Spiel beendet!" onClose={onEndSeen}>
+          <div style={{ textAlign: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.gold }}>{rank.filter((r) => r.place === 1).map((r) => r.name).join(" & ")}</div>
+            <div style={{ color: C.dim }}>gewinnt mit {rank[0].score} Punkten</div>
+          </div>
+          <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.line}`, marginBottom: 16 }}>
+            {rank.map((r, i) => (
+              <Row key={r.p} last={i === rank.length - 1}>
+                <span style={{ width: 30, textAlign: "center", color: C.dim }}>{medal(r.place)}</span>
+                <span style={{ flex: 1 }}>{r.name}</span>
+                <span style={{ fontWeight: 600, color: r.score < 0 ? C.bad : C.text }}>{r.score}</span>
+              </Row>
+            ))}
+          </div>
+          <div style={{ color: C.dim, textAlign: "center", marginBottom: 12 }}>Was soll mit dem Spiel passieren?</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <BigButton color={C.bad} onClick={onDelete}>🗑 Spiel löschen</BigButton>
+            <BigButton onClick={onEndSeen}>💾 Spiel behalten</BigButton>
+          </div>
+        </Sheet>
+      )}
+
+      {confirmDelete && (
+        <Sheet title="Spiel löschen?" onClose={() => setConfirmDelete(false)}>
+          <div style={{ color: C.dim, textAlign: "center", marginBottom: 16 }}>„{game.name}" wird endgültig gelöscht.</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <BigButton color={C.card2} onClick={() => setConfirmDelete(false)}>Abbrechen</BigButton>
+            <BigButton color={C.bad} onClick={onDelete}>Löschen</BigButton>
+          </div>
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+// Klassischer Punkteblock: pro Spieler Ansage und Punktestand je Runde.
+function ScoreBlock({ game, onOpenRound }) {
+  const total = roundCount(game);
+  const running = game.players.map(() => 0);
+  return (
+    <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.line}`, overflow: "auto", maxHeight: "68vh" }}>
+      <table className="block-table" style={{ width: "100%" }}>
+        <thead>
+          <tr>
+            <th>R</th>
+            {game.players.map((p, i) => <th key={i} colSpan={2} style={{ maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis" }}>{p}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: total }, (_, r) => {
+            const rd = game.rounds[r];
+            return (
+              <tr key={r} onClick={() => onOpenRound(r)} style={{ cursor: "pointer" }}>
+                <td style={{ color: C.dim }}>{r + 1}</td>
+                {game.players.map((_, p) => {
+                  if (!rd || !rd.bidsDone) return <React.Fragment key={p}><td style={{ color: "#ffffff30" }}>·</td><td style={{ color: "#ffffff30" }}>·</td></React.Fragment>;
+                  const showBid = !isSecret(game.rule) || rd.done;
+                  if (!rd.done) return <React.Fragment key={p}><td style={{ color: C.dim, fontSize: 12 }}>{showBid ? rd.bids[p] : "?"}</td><td /></React.Fragment>;
+                  const s = roundScore(rd, p);
+                  running[p] += s;
+                  return (
+                    <React.Fragment key={p}>
+                      <td style={{ color: C.dim, fontSize: 12 }}>{effectiveBid(rd, p)}{rd.cloud && rd.cloud.player === p ? "☁️" : ""}</td>
+                      <td style={{ fontWeight: 600, color: s > 0 ? C.good : C.bad }}>{running[p]}</td>
+                    </React.Fragment>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Runde: Ansagen & Ergebnis ─────────────────────────────────────────────────
+function RoundView({ game, r, onSave, onDraft, onClose }) {
+  const n = game.players.length;
+  const existing = game.rounds[r];
+  const [rd, setRd] = useState(() => JSON.parse(JSON.stringify(existing || emptyRound(n))));
+  const [step, setStep] = useState(existing && existing.bidsDone ? "result" : "bids");
+  const [revealed, setRevealed] = useState(null);
+  const [cloudFor, setCloudFor] = useState(null);
+  const cards = r + 1; // Karten pro Spieler; bei den Stichen begrenzt „+“ auf die noch verfügbaren Stiche
+  const dealer = dealerOf(game, r);
+  const specials = EDITIONS[game.edition].specials;
+  const secret = isSecret(game.rule);
+  const last = r === roundCount(game) - 1;
+
+  const update = (patch) => setRd((cur) => ({ ...cur, ...patch }));
+  const setAt = (key, p, v) => setRd((cur) => ({ ...cur, [key]: cur[key].map((x, i) => (i === p ? v : x)) }));
+
+  // Ansage-Prüfung je nach Regel
+  const bidSum = rd.bids.reduce((a, b) => a + b, 0);
+  const diff = bidSum - cards;
+  let bidHint = diff === 0 ? "Ansagen gehen auf" : diff > 0 ? `${diff} Stich${diff > 1 ? "e" : ""} zu viel` : `${-diff} Stich${diff < -1 ? "e" : ""} fehl${diff < -1 ? "en" : "t"}`;
+  let bidOk = true;
+  if (game.rule === "aufgehen" && diff !== 0) { bidOk = false; bidHint += " – muss aufgehen"; }
+  if (isPlusMinus(game.rule) && diff === 0) { bidOk = false; bidHint = "Darf nicht aufgehen"; }
+  if (secret) bidHint = bidOk ? "Ansagen sind geheim" : bidHint;
+
+  const trickSum = rd.tricks.reduce((a, b) => a + b, 0);
+  const need = tricksInRound(rd, r);
+  const trickDiff = trickSum - need;
+  const trickOk = trickDiff === 0;
+  const trickHint = trickOk ? "Stiche passen ✓" : trickDiff > 0 ? `${trickDiff} Stich${trickDiff > 1 ? "e" : ""} zu viel` : `${-trickDiff} Stich${trickDiff < -1 ? "e" : ""} fehl${trickDiff < -1 ? "en" : "t"}`;
+
+  const finish = (goNext) => {
+    const saved = { ...rd, bidsDone: true, done: true };
+    onSave(r, saved, goNext && !last ? r + 1 : null);
+  };
+
+  const order = Array.from({ length: n }, (_, i) => (dealer + 1 + i) % n); // Ansage beginnt links vom Geber, Geber steht unten
+
+  const nameCell = (p) => (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 17, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{game.players[p]}</div>
+      {p === dealer && <div style={{ fontSize: 12, color: C.gold }}>Geber</div>}
+    </div>
+  );
+  const valueBox = (txt, color) => <div style={{ minWidth: 54, textAlign: "center", fontSize: 22, fontWeight: 600, color: color || C.text }}>{txt}</div>;
+
+  return (
+    <div style={page} className="pop">
+      <TopBar left={<IconBtn label="Abbrechen" onClick={step === "result" && !existing?.bidsDone ? () => setStep("bids") : onClose}>{step === "result" && !existing?.bidsDone ? "‹ Ansagen" : "✕"}</IconBtn>}
+        title={step === "bids" ? "Ansagen" : "Ergebnis"}
+        right={step === "result" && existing?.bidsDone ? <IconBtn label="Ansagen ändern" onClick={() => setStep("bids")}>Ansagen</IconBtn> : null} />
+
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 34, fontWeight: 700 }}>Runde {cards}</div>
+        <div style={{ color: C.dim }}>{cards} Karte{cards > 1 ? "n" : ""} pro Spieler · {game.players[dealer]} gibt</div>
+      </div>
+
+      {step === "bids" && (
+        <>
+          <div style={{ color: C.dim, fontSize: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.6, margin: "0 6px 6px" }}>Trumpf</div>
+          <div style={{ marginBottom: 20 }}>
+            <Segmented value={rd.trump} onChange={(t) => update({ trump: t })} options={TRUMPS} />
+          </div>
+          <Section title="Angesagte Stiche" footer={secret ? "Geheim: Jeder tippt auf 👁 und stellt seine Ansage ein, ohne dass die anderen hinsehen." : null}>
+            {order.map((p, i) => {
+              const hidden = secret && revealed !== p;
+              return (
+                <Row key={p} last={i === n - 1}>
+                  {nameCell(p)}
+                  {secret && <button aria-label="Ansage zeigen" onClick={() => setRevealed(revealed === p ? null : p)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", opacity: hidden ? 0.6 : 1 }}>{hidden ? "👁" : "🙈"}</button>}
+                  {hidden ? valueBox("•", C.dim) : (
+                    <>
+                      <Stepper value={rd.bids[p]} max={cards} onChange={(v) => setAt("bids", p, v)} />
+                      {valueBox(rd.bids[p])}
+                    </>
+                  )}
+                </Row>
+              );
+            })}
+          </Section>
+          <BottomBar hint={bidHint} hintColor={bidOk ? (diff === 0 ? C.good : C.dim) : C.bad}>
+            <BigButton disabled={!bidOk} onClick={() => { const next = { ...rd, bidsDone: true }; setRd(next); onDraft(r, next); setRevealed(null); setStep("result"); }}>Spielen ▶</BigButton>
+          </BottomBar>
+        </>
+      )}
+
+      {step === "result" && (
+        <>
+          {rd.trump && (
+            <div style={{ textAlign: "center", marginBottom: 14 }}>
+              <span style={{ display: "inline-block", padding: "4px 14px", borderRadius: 20, background: TRUMPS.find((t) => t.id === rd.trump).color, fontWeight: 600 }}>
+                Trumpf: {TRUMPS.find((t) => t.id === rd.trump).name}
+              </span>
+            </div>
+          )}
+          {specials && (
+            <Section footer={rd.bomb ? `Die Bombe hat einen Stich vernichtet – es gibt nur ${need} Stich${need !== 1 ? "e" : ""}.` : "Mit der Bombe geht ein Stich an niemanden."}>
+              <Row last onClick={() => update({ bomb: !rd.bomb })}>
+                <span style={{ flex: 1, fontSize: 17 }}>💣 Wurde die Bombe gespielt?</span>
+                <span role="switch" aria-checked={rd.bomb} style={{ width: 52, height: 30, borderRadius: 15, background: rd.bomb ? C.good : "#3a3c66", position: "relative", transition: "background .2s" }}>
+                  <span style={{ position: "absolute", top: 3, left: rd.bomb ? 25 : 3, width: 24, height: 24, borderRadius: 12, background: "#fff", transition: "left .2s" }} />
+                </span>
+              </Row>
+            </Section>
+          )}
+          <Section title="Gemachte Stiche / Ansage" footer={specials ? "☁️ Wer den Stich mit der Wolke gewinnt, ändert seine Ansage um 1 nach oben oder unten." : null}>
+            {order.map((p, i) => {
+              const cloud = rd.cloud && rd.cloud.player === p;
+              const bid = effectiveBid(rd, p);
+              const hit = bid === rd.tricks[p];
+              return (
+                <Row key={p} last={i === n - 1}>
+                  {nameCell(p)}
+                  <Stepper value={rd.tricks[p]} max={Math.max(rd.tricks[p], rd.tricks[p] + need - trickSum)} onChange={(v) => setAt("tricks", p, v)} />
+                  <div style={{ minWidth: 62, textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 600 }}>{rd.tricks[p]} / {bid}</div>
+                    <div style={{ fontSize: 12, color: hit ? C.good : C.bad }}>{roundScore(rd, p) > 0 ? "+" : ""}{roundScore(rd, p)}</div>
+                  </div>
+                  {specials && (
+                    <button aria-label="Wolke" onClick={() => (cloud ? update({ cloud: null }) : setCloudFor(p))}
+                      style={{ width: 40, height: 36, borderRadius: 10, border: `1px solid ${cloud ? C.accent : C.line}`, background: cloud ? "#8b6cff44" : "transparent", fontSize: 18, cursor: "pointer", opacity: cloud ? 1 : 0.55 }}>
+                      ☁️
+                    </button>
+                  )}
+                </Row>
+              );
+            })}
+          </Section>
+          <BottomBar hint={trickHint} hintColor={trickOk ? C.good : C.bad}>
+            <BigButton color={C.card2} disabled={!trickOk} onClick={() => finish(false)} style={{ flex: "0 0 32%" }}>Fertig</BigButton>
+            <BigButton disabled={!trickOk} onClick={() => finish(true)}>{last ? "Spiel beenden 🏆" : "Nächste Runde ▶"}</BigButton>
+          </BottomBar>
+        </>
+      )}
+
+      {cloudFor !== null && (
+        <Sheet title={`☁️ Wolke – ${game.players[cloudFor]}`} onClose={() => setCloudFor(null)}>
+          <div style={{ color: C.dim, textAlign: "center", marginBottom: 14 }}>Ansage war {rd.bids[cloudFor]}. Wie wird sie geändert?</div>
+          {rd.bids[cloudFor] < cards && <Choice label={`Ansage um 1 erhöhen (→ ${rd.bids[cloudFor] + 1})`} onClick={() => { update({ cloud: { player: cloudFor, delta: 1 } }); setCloudFor(null); }} />}
+          {rd.bids[cloudFor] > 0 && <Choice label={`Ansage um 1 verringern (→ ${rd.bids[cloudFor] - 1})`} onClick={() => { update({ cloud: { player: cloudFor, delta: -1 } }); setCloudFor(null); }} />}
+          <Choice label="Abbrechen" onClick={() => setCloudFor(null)} />
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [state, setState] = useState(loadState);
+  const [view, setView] = useState(() => state.view || { name: "list" });
+
+  useEffect(() => { saveState({ ...state, view }); }, [state, view]);
+
+  const game = view.gameId ? state.games.find((g) => g.id === view.gameId) : null;
+  const updateGame = (id, fn) => setState((s) => ({ ...s, games: s.games.map((g) => (g.id === id ? fn(g) : g)) }));
+  const defaults = { ...DEFAULTS, ...state.defaults };
+  const list = <GameList games={state.games} onOpen={(id) => setView({ name: "game", gameId: id })} onNew={() => setView({ name: "new" })} onSettings={() => setView({ name: "settings" })} />;
+
+  if ((view.name === "game" || view.name === "round") && !game) return list;
+
+  if (view.name === "settings")
+    return <Settings defaults={defaults} setDefaults={(d) => setState((s) => ({ ...s, defaults: d }))} onBack={() => setView({ name: "list" })} />;
+
+  if (view.name === "new")
+    return <NewGame defaults={defaults} onCancel={() => setView({ name: "list" })}
+      onCreate={(g) => { setState((s) => ({ ...s, games: [...s.games, g] })); setView({ name: "game", gameId: g.id }); }} />;
+
+  if (view.name === "game")
+    return <GameView game={game} justFinished={view.finished} onEndSeen={() => setView({ name: "game", gameId: game.id })}
+      onBack={() => setView({ name: "list" })} onOpenRound={(r) => setView({ name: "round", gameId: game.id, round: r })}
+      onDelete={() => { setState((s) => ({ ...s, games: s.games.filter((g) => g.id !== game.id) })); setView({ name: "list" }); }} />;
+
+  if (view.name === "round")
+    return <RoundView key={`${game.id}-${view.round}`} game={game} r={view.round} onClose={() => setView({ name: "game", gameId: game.id })}
+      onDraft={(r, rd) => updateGame(game.id, (g) => { const rounds = [...g.rounds]; rounds[r] = rd; return { ...g, rounds }; })}
+      onSave={(r, rd, next) => {
+        updateGame(game.id, (g) => { const rounds = [...g.rounds]; rounds[r] = rd; return { ...g, rounds }; });
+        // Nach der letzten Runde fragt das Spielende-Popup, ob das Spiel behalten oder gelöscht wird
+        const lastRound = r === roundCount(game) - 1;
+        setView(next !== null ? { name: "round", gameId: game.id, round: next } : { name: "game", gameId: game.id, finished: lastRound });
+      }} />;
+
+  return list;
+}
+
+ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+</script>
+</body>
+</html>

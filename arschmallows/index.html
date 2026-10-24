@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Spieleabend" />
+  <meta name="theme-color" content="#140d1c" />
+  <title>Arschmallows Helper</title>
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="manifest" href="../manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #140d1c; color: #fff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0) rotate(0deg); }
+      20% { transform: translateX(-7px) rotate(-2deg); }
+      40% { transform: translateX(7px) rotate(2deg); }
+      60% { transform: translateX(-4px) rotate(-1deg); }
+      80% { transform: translateX(4px) rotate(1deg); }
+    }
+    @keyframes toastIn {
+      from { opacity:0; transform:translateX(-50%) translateY(12px); }
+      to   { opacity:1; transform:translateX(-50%) translateY(0); }
+    }
+    @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    .gear-btn { transition: border-color 0.2s; }
+    .gear-btn:hover { animation: spin 1.5s linear infinite; }
+    .forget-slider { -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:3px; outline:none; cursor:pointer; margin-bottom:14px; }
+    .forget-slider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#ff6b35; border:2px solid #fff; cursor:pointer; box-shadow:0 0 8px rgba(255,107,53,0.5); }
+    .forget-slider::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:#ff6b35; border:2px solid #fff; cursor:pointer; }
+    .card-shake { animation: shake 0.4s ease; }
+    button { font-family: inherit; }
+    @keyframes flicker { 0%,100% { opacity:0.85; transform:scale(1); } 40% { opacity:1; transform:scale(1.06) translateY(-2px); } 70% { opacity:0.75; transform:scale(0.97); } }
+    .flame { animation: flicker 1.6s ease-in-out infinite; transform-origin: 50% 100%; }
+    .fire-glow { position:fixed; left:50%; bottom:-30vh; width:140vw; height:70vh; transform:translateX(-50%); background:radial-gradient(ellipse at 50% 100%, rgba(255,120,40,0.35) 0%, rgba(255,80,40,0.12) 40%, transparent 70%); pointer-events:none; animation: flicker 3s ease-in-out infinite; z-index:0; }
+    .stars { position:fixed; inset:0; pointer-events:none; z-index:0; background-image: radial-gradient(1px 1px at 10% 12%, #fff8, transparent), radial-gradient(1px 1px at 30% 6%, #fff6, transparent), radial-gradient(1.5px 1.5px at 55% 15%, #fff9, transparent), radial-gradient(1px 1px at 72% 8%, #fff6, transparent), radial-gradient(1px 1px at 88% 18%, #fff8, transparent), radial-gradient(1px 1px at 20% 28%, #fff4, transparent), radial-gradient(1px 1px at 80% 30%, #fff5, transparent); }
+    #app > div > * { position: relative; z-index: 1; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script type="text/babel">
+
+const { useState, useEffect } = React;
+
+const FORGOT = "💨";
+const GAP    = "_GAP"; // free grid position without a card
+
+// ── Translations ──────────────────────────────────────────────────────────────
+const T = {
+  de: {
+    tagline: "Merk-Helfer am Lagerfeuer",
+    forgetLabel: "Vergesslichkeit",
+    forgetNever: "nie vergessen",
+    forgetRarely: "selten vergessen",
+    forgetSometimes: "manchmal vergessen",
+    forgetOften: "oft vergessen",
+    forgetAlways: "immer vergessen",
+    forgetHint: "Chance pro Eintrag, dass eine andere Karte vergessen wird.",
+    gameMode: "Spielmodus",
+    modeSwitchHint: "Modwechsel startet neues Spiel",
+    settings: "Einstellungen",
+    language: "Sprache",
+    statFilled: "eingetragen",
+    statFix: "fix",
+    statForgot: "vergessen",
+    statEmpty: "leer",
+    statTotal: "gesamt",
+    tapHint: "Karte antippen zum Eintragen",
+    fixHint: "🔒 FIX = wird nie vergessen",
+    chanceHint: (p) => `${p}% Chance, dass dabei was verloren geht`,
+    addCard: "+ Karte hinzufügen",
+    newGame: "↺ Neues Spiel",
+    footer: "© Arschmallows Cryonix · Keine Haftung für Vergesslichkeit",
+    cardTitle: (i) => `Karte #${i+1}`,
+    fixOn: "AN",
+    fixOff: "AUS",
+    fixOnDesc: "wird nicht vergessen",
+    fixOffDesc: "kann vergessen werden",
+    clearCard: "✕ Karte leeren",
+    removeField: "🗑 Feld entfernen",
+    cancel: "Abbrechen",
+    confirm: "OK",
+    placeHint: "Tippe auf ein ＋. Neue Reihen oder die extra Spalte gibt es erst, wenn alle Plätze voll sind.",
+    placeCancel: "✕ Abbrechen",
+    switchTitle: (label) => `Zu ${label} wechseln?`,
+    switchMsg: (n) => `Das startet ein neues Spiel mit ${n} Karten. Alle aktuellen Karten gehen verloren.`,
+    switchConfirm: "Wechseln",
+    resetTitle: "Neues Spiel?",
+    resetMsg: "Alle Karten werden gelöscht und das Spiel startet neu.",
+    resetConfirm: "Neues Spiel",
+    toastForgot: (saved, victim) => `Während du Karte ${saved+1} eingetragen hast… vergaß ich Karte ${victim+1}. 🤦`,
+    modeSub: { normal: "6 Karten · -4, -2, 0–10", xxl: "9 Karten · -4, -2, 0–15" },
+    sum: "∑ Summe",
+    undo: "↩ Rückgängig",
+    toastRestored: (i) => `Karte ${i+1} wiederhergestellt. 🧠`,
+    tipsTitle: "🧠 Tipps",
+    tipHighest: (i, v) => `Höchste Karte: #${i+1} (${v}) – zuerst tauschen`,
+    tipEstimate: (n, est) => `${n} unbekannt · geschätzte Endsumme ≈ ${est}`,
+    tipForgot: (n) => `💨 ${n} vergessen – nochmal nachschauen!`,
+    tipAllKnown: "Alle Karten bekannt 👌",
+    tipNone: "Trag Karten ein, dann gibt's Tipps.",
+    saveRound: "💾 Runde speichern",
+    roundTitle: "Runde speichern?",
+    roundMsg: (s) => `Summe ${s} wird im Verlauf gespeichert. Danach startet eine neue Runde.`,
+    roundConfirm: "Speichern",
+    toastRoundSaved: (n, s) => `Runde ${n} gespeichert: ${s} ✓`,
+    history: "📜 Verlauf",
+    historyEmpty: "Noch keine Runden gespeichert.",
+    historyStats: (n, total, avg) => `${n} Runden · gesamt ${total} · Ø ${avg}`,
+    roundLabel: (n) => `Runde ${n}`,
+    clearHistory: "Verlauf löschen",
+    clearHistoryTitle: "Verlauf löschen?",
+    clearHistoryMsg: "Alle gespeicherten Runden werden gelöscht.",
+    clearHistoryConfirm: "Löschen",
+    savedHint: "💾 wird automatisch gespeichert",
+    saveSettings: "💾 Einstellungen speichern",
+    settingsUpToDate: "✓ Gespeichert",
+    settingsSaved: "Einstellungen gespeichert ✓",
+    unsavedHint: "Nicht gespeichert – beim Schließen gehen die Änderungen verloren",
+  },
+  en: {
+    tagline: "Campfire Memory Helper",
+    forgetLabel: "Forgetfulness",
+    forgetNever: "never forget",
+    forgetRarely: "rarely forget",
+    forgetSometimes: "sometimes forget",
+    forgetOften: "often forget",
+    forgetAlways: "always forget",
+    forgetHint: "Chance per entry that another card gets forgotten.",
+    gameMode: "Game Mode",
+    modeSwitchHint: "Switching mode starts a new game",
+    settings: "Settings",
+    language: "Language",
+    statFilled: "entered",
+    statFix: "fixed",
+    statForgot: "forgotten",
+    statEmpty: "empty",
+    statTotal: "total",
+    tapHint: "Tap a card to enter a value",
+    fixHint: "🔒 FIX = will never be forgotten",
+    chanceHint: (p) => `${p}% chance something gets lost`,
+    addCard: "+ Add Card",
+    newGame: "↺ New Game",
+    footer: "© Arschmallows Cryonix · No liability for forgetfulness",
+    cardTitle: (i) => `Card #${i+1}`,
+    fixOn: "ON",
+    fixOff: "OFF",
+    fixOnDesc: "will not be forgotten",
+    fixOffDesc: "can be forgotten",
+    clearCard: "✕ Clear Card",
+    removeField: "🗑 Remove Slot",
+    cancel: "Cancel",
+    confirm: "OK",
+    placeHint: "Tap a ＋. New rows or the extra column only appear once every spot is filled.",
+    placeCancel: "✕ Cancel",
+    switchTitle: (label) => `Switch to ${label}?`,
+    switchMsg: (n) => `This starts a new game with ${n} cards. All current cards will be lost.`,
+    switchConfirm: "Switch",
+    resetTitle: "New Game?",
+    resetMsg: "All cards will be deleted and the game restarts.",
+    resetConfirm: "New Game",
+    toastForgot: (saved, victim) => `While entering card ${saved+1}… I forgot card ${victim+1}. 🤦`,
+    modeSub: { normal: "6 cards · -4, -2, 0–10", xxl: "9 cards · -4, -2, 0–15" },
+    sum: "∑ Sum",
+    undo: "↩ Undo",
+    toastRestored: (i) => `Card ${i+1} restored. 🧠`,
+    tipsTitle: "🧠 Tips",
+    tipHighest: (i, v) => `Highest card: #${i+1} (${v}) – swap it first`,
+    tipEstimate: (n, est) => `${n} unknown · estimated final sum ≈ ${est}`,
+    tipForgot: (n) => `💨 ${n} forgotten – take another look!`,
+    tipAllKnown: "All cards known 👌",
+    tipNone: "Enter some cards to get tips.",
+    saveRound: "💾 Save Round",
+    roundTitle: "Save round?",
+    roundMsg: (s) => `Sum ${s} will be saved to the history. Then a new round starts.`,
+    roundConfirm: "Save",
+    toastRoundSaved: (n, s) => `Round ${n} saved: ${s} ✓`,
+    history: "📜 History",
+    historyEmpty: "No rounds saved yet.",
+    historyStats: (n, total, avg) => `${n} rounds · total ${total} · avg ${avg}`,
+    roundLabel: (n) => `Round ${n}`,
+    clearHistory: "Clear history",
+    clearHistoryTitle: "Clear history?",
+    clearHistoryMsg: "All saved rounds will be deleted.",
+    clearHistoryConfirm: "Clear",
+    savedHint: "💾 saved automatically",
+    saveSettings: "💾 Save Settings",
+    settingsUpToDate: "✓ Saved",
+    settingsSaved: "Settings saved ✓",
+    unsavedHint: "Not saved – changes are lost when you close",
+  }
+};
+
+const MODES = {
+  normal: { label: "Arschmallows",     startCards: 6, numbers: [-4,-2,0,1,2,3,4,5,6,7,8,9,10] },
+  xxl:    { label: "Arschmallows XXL", startCards: 9, numbers: [-4,-2,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] },
+};
+
+const isFix    = v => typeof v === "string" && v.startsWith("FIX:");
+const fixNum   = v => v ? v.replace("FIX:", "") : "";
+const isForgot = v => v === FORGOT;
+const isEmpty  = v => v === null;
+const isGap    = v => v === GAP;
+const isNormal = v => v !== null && !isForgot(v) && !isFix(v) && !isGap(v);
+const trimGaps = arr => { const a=[...arr]; while (a.length && isGap(a[a.length-1])) a.pop(); return a; };
+
+// ── Grid layout ───────────────────────────────────────────────────────────────
+// cards are stored row by row; the grid has BASE_COLS columns, plus at most one extra side column
+const BASE_COLS = 3;
+const MAX_COLS  = 4;
+const padRows = (arr, cols) => { const a=[...arr]; while (a.length % cols) a.push(GAP); return a; };
+const colEmpty = (a, cols, c) => { for (let i=c; i<a.length; i+=cols) if (!isGap(a[i])) return false; return true; };
+const dropCol = (a, cols, c) => a.filter((_,i) => i % cols !== c);
+
+// remove empty edge columns/rows so the grid stays tidy
+function normalize(arr, cols) {
+  let a = padRows(arr, cols);
+  if (cols > BASE_COLS) {
+    if (colEmpty(a, cols, cols-1)) { a = dropCol(a, cols, cols-1); cols--; }
+    else if (colEmpty(a, cols, 0)) { a = dropCol(a, cols, 0); cols--; }
+  }
+  while (a.length >= cols && a.slice(0, cols).every(isGap)) a = a.slice(cols);
+  return { cards: trimGaps(a), cols };
+}
+
+const newRow = (cols, c) => Array.from({length: cols}, (_,k) => k===c ? null : GAP);
+
+function addSide(arr, cols, side, row) {
+  const a = padRows(arr, cols), out = [];
+  for (let r=0; r*cols < a.length; r++) {
+    const cells = a.slice(r*cols, (r+1)*cols), extra = r===row ? null : GAP;
+    out.push(...(side==="left" ? [extra, ...cells] : [...cells, extra]));
+  }
+  return out;
+}
+const cardNum  = v => isNormal(v) ? parseInt(v, 10) : isFix(v) ? parseInt(fixNum(v), 10) : null;
+const fmtSigned = n => (n>0?"+":"") + n;
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+const STORE_KEY = "arschmallows2";
+function loadStore() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY)) || {};
+    if (!MODES[s.mode]) s.mode = "normal";
+    if (!T[s.lang]) s.lang = "de";
+    if (!Array.isArray(s.cards)) s.cards = Array(MODES[s.mode].startCards).fill(null);
+    if (typeof s.forgetChance !== "number") s.forgetChance = 0.25;
+    if (!Array.isArray(s.history)) s.history = [];
+    if (s.cols !== BASE_COLS && s.cols !== MAX_COLS) s.cols = BASE_COLS;
+    return s;
+  } catch {
+    return { mode:"normal", lang:"de", cards:Array(MODES.normal.startCards).fill(null), cols:BASE_COLS, forgetChance:0.25, history:[] };
+  }
+}
+function saveStore(data) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch {}
+}
+const STORED = loadStore();
+
+// ── Backdrop ──────────────────────────────────────────────────────────────────
+function Backdrop({ onClick, zIndex }) {
+  return <div onClick={onClick} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", backdropFilter:"blur(5px)", zIndex: zIndex||50 }} />;
+}
+
+// ── Dialog ────────────────────────────────────────────────────────────────────
+function Dialog({ icon, title, message, confirmLabel, confirmColor, cancelLabel, onConfirm, onCancel }) {
+  const cc = confirmColor || "#ff6b35";
+  return (
+    <div onClick={onCancel} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", backdropFilter:"blur(5px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"#1c1326", border:`2px solid ${cc}`, borderRadius:18, padding:"28px 24px 22px", width:"100%", maxWidth:320, boxShadow:`0 0 50px ${cc}44`, textAlign:"center" }}>
+        {icon && <div style={{ fontSize:38, marginBottom:12 }}>{icon}</div>}
+        <div style={{ fontSize:15, fontWeight:900, color:"#fff", letterSpacing:1, marginBottom:10 }}>{title}</div>
+        <div style={{ fontSize:12, color:"#666", lineHeight:1.75, marginBottom:24 }}>{message}</div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onCancel} style={{ flex:1, background:"transparent", color:"#666", border:"1px solid #3d2c48", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer" }}>{cancelLabel}</button>
+          <button onClick={onConfirm} style={{ flex:1, background:cc, color: cc==="#f1c40f"?"#000":"#fff", border:"none", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", boxShadow:`0 0 16px ${cc}55` }}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function Toast({ message, type, action, onDone }) {
+  useEffect(() => { const t = setTimeout(onDone, action ? 5000 : 3200); return () => clearTimeout(t); }, [message]);
+  const s = type==="forgot" ? { bg:"#590d22", border:"#ff4d6d", color:"#ff4d6d" } : { bg:"#0a2e1a", border:"#2ecc71", color:"#2ecc71" };
+  return (
+    <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", background:s.bg, border:`2px solid ${s.border}`, borderRadius:12, padding:"13px 22px", color:s.color, fontFamily:"inherit", fontWeight:"bold", fontSize:13, zIndex:400, boxShadow:`0 0 30px ${s.border}44`, animation:"toastIn 0.3s ease", maxWidth:"88vw", textAlign:"center", lineHeight:1.5 }}>
+      {message}
+      {action && <button onClick={() => { action.onClick(); onDone(); }} style={{ display:"block", margin:"10px auto 0", background:"transparent", color:s.color, border:`1px solid ${s.border}`, borderRadius:8, padding:"6px 16px", fontSize:12, fontFamily:"inherit", fontWeight:900, cursor:"pointer" }}>{action.label}</button>}
+    </div>
+  );
+}
+
+// ── Tips ──────────────────────────────────────────────────────────────────────
+function Tips({ cards, numbers, sum, t }) {
+  const known = cards.map((v,i) => ({ i, n: cardNum(v), fix: isFix(v) })).filter(c => c.n !== null);
+  const unknown = cards.filter(v => isEmpty(v) || isForgot(v)).length;
+  const forgotC = cards.filter(isForgot).length;
+  const avg = numbers.reduce((a,b) => a+b, 0) / numbers.length;
+  const swappable = known.filter(c => !c.fix);
+  const highest = swappable.length ? swappable.reduce((a,b) => b.n > a.n ? b : a) : null;
+  const lines = [];
+  if (!known.length) lines.push(t.tipNone);
+  else {
+    if (highest && highest.n > avg) lines.push(t.tipHighest(highest.i, highest.n));
+    lines.push(unknown ? t.tipEstimate(unknown, fmtSigned(Math.round(sum + unknown*avg))) : t.tipAllKnown);
+  }
+  if (forgotC) lines.push(t.tipForgot(forgotC));
+  return (
+    <div style={{ width:"100%", maxWidth:300, marginBottom:14, background:"#14141c", border:"1px solid #3d2c48", borderLeft:"3px solid #f1c40f", borderRadius:12, padding:"12px 14px" }}>
+      <div style={{ fontSize:11, color:"#f1c40f", letterSpacing:2, textTransform:"uppercase", marginBottom:6 }}>{t.tipsTitle}</div>
+      {lines.map((l,k) => <div key={k} style={{ fontSize:11, color:"#999", lineHeight:1.7 }}>{l}</div>)}
+    </div>
+  );
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+function History({ history, onAskClear, t }) {
+  const total = history.reduce((a,r) => a + r.sum, 0);
+  const avg = history.length ? Math.round(total / history.length * 10) / 10 : 0;
+  return (
+    <div style={{ width:"100%", maxWidth:300, marginTop:14, background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:"14px" }}>
+      <div style={{ fontSize:11, color:"#aaa", letterSpacing:2, textTransform:"uppercase", marginBottom:8 }}>{t.history}</div>
+      {!history.length ? <div style={{ fontSize:11, color:"#444" }}>{t.historyEmpty}</div> : <>
+        <div style={{ fontSize:11, color:"#f1c40f", marginBottom:8 }}>{t.historyStats(history.length, fmtSigned(total), avg)}</div>
+        <div style={{ maxHeight:180, overflowY:"auto" }}>
+          {history.map((r,k) => ({ r, n: k+1 })).reverse().map(({ r, n }) => (
+            <div key={n} style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#777", padding:"4px 0", borderTop:"1px solid #1f1f28" }}>
+              <span>{t.roundLabel(n)} · {MODES[r.mode] ? MODES[r.mode].label : r.mode}</span>
+              <span style={{ color: r.sum>0?"#ff6b35":r.sum<0?"#2ecc71":"#666", fontWeight:900 }}>{fmtSigned(r.sum)}</span>
+            </div>
+          ))}
+        </div>
+        <button onClick={onAskClear} style={{ marginTop:10, width:"100%", background:"transparent", color:"#555", border:"1px solid #3d2c48", borderRadius:8, padding:"8px 0", fontSize:11, fontFamily:"inherit", cursor:"pointer" }}>{t.clearHistory}</button>
+      </>}
+    </div>
+  );
+}
+
+// ── Settings Panel ────────────────────────────────────────────────────────────
+// language and forgetfulness are edited as a draft and only applied with the save button
+function SettingsPanel({ forgetChance: savedChance, lang: savedLang, onSave, mode, onChangeMode, onClose }) {
+  const [forgetChance, onChangeChance] = useState(savedChance);
+  const [lang, onChangeLang] = useState(savedLang);
+  const t = T[lang];
+  const dirty = forgetChance !== savedChance || lang !== savedLang;
+  const pct = Math.round(forgetChance * 100);
+  const sc = pct===0?"#2ecc71":pct<30?"#f1c40f":pct<60?"#ff6b35":"#ff4d6d";
+  const lbl = pct===0?t.forgetNever:pct<20?t.forgetRarely:pct<50?t.forgetSometimes:pct<80?t.forgetOften:t.forgetAlways;
+  return (
+    <>
+      <Backdrop onClick={onClose} zIndex={100} />
+      <div style={{ position:"fixed", top:0, right:0, zIndex:101, background:"#1c1326", border:"2px solid #ff6b35", borderRadius:"0 0 0 16px", padding:"20px 20px 28px", width:300, maxHeight:"100vh", overflowY:"auto", boxShadow:"-10px 10px 40px rgba(0,0,0,0.7)" }}>
+
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:18 }}>⚙️</span>
+            <span style={{ color:"#ff6b35", fontSize:12, letterSpacing:3, textTransform:"uppercase" }}>{t.settings}</span>
+          </div>
+          <div onClick={onClose} style={{ color:"#555", fontSize:20, cursor:"pointer" }}>✕</div>
+        </div>
+
+        {/* Language */}
+        <div style={{ background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:16, marginBottom:12 }}>
+          <div style={{ color:"#aaa", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.language}</div>
+          <div style={{ display:"flex", gap:8 }}>
+            {[["de","🇩🇪 Deutsch"],["en","🇬🇧 English"]].map(([key, label]) => {
+              const active = lang === key;
+              return (
+                <div key={key} onClick={() => onChangeLang(key)} style={{ flex:1, background:active?"#1a1000":"#2a1e36", border:`2px solid ${active?"#f1c40f":"#3d2c48"}`, borderRadius:10, padding:"10px 8px", cursor:"pointer", textAlign:"center", boxShadow:active?"0 0 14px rgba(241,196,15,0.2)":"none" }}>
+                  <div style={{ fontSize:12, fontWeight:900, color:active?"#f1c40f":"#ccc" }}>{label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Game Mode */}
+        <div style={{ background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:16, marginBottom:12 }}>
+          <div style={{ color:"#aaa", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.gameMode}</div>
+          {Object.entries(MODES).map(([key, m]) => {
+            const active = mode === key;
+            return (
+              <div key={key} onClick={() => onChangeMode(key)} style={{ background:active?"#1a1a00":"#2a1e36", border:`2px solid ${active?"#f1c40f":"#3d2c48"}`, borderRadius:10, padding:"12px 14px", marginBottom:8, cursor:"pointer", boxShadow:active?"0 0 14px rgba(241,196,15,0.2)":"none" }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:900, color:active?"#f1c40f":"#ccc", letterSpacing:1 }}>{m.label}</div>
+                    <div style={{ fontSize:10, color:"#555", marginTop:3 }}>{t.modeSub[key]}</div>
+                  </div>
+                  <div style={{ width:18, height:18, borderRadius:"50%", border:`2px solid ${active?"#f1c40f":"#333"}`, background:active?"#f1c40f":"transparent", flexShrink:0 }} />
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ fontSize:10, color:"#333", textAlign:"center" }}>{t.modeSwitchHint}</div>
+        </div>
+
+        {/* Forgetfulness */}
+        <div style={{ background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:16 }}>
+          <div style={{ color:"#aaa", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.forgetLabel}</div>
+          <div style={{ fontSize:52, fontWeight:900, color:sc, textAlign:"center", lineHeight:1, marginBottom:4, textShadow:`0 0 20px ${sc}66` }}>{pct}%</div>
+          <div style={{ fontSize:10, color:"#555", textAlign:"center", marginBottom:16 }}>{lbl}</div>
+          <input type="range" min={0} max={100} step={1} value={pct} onChange={e => onChangeChance(Number(e.target.value)/100)} className="forget-slider" style={{ background:`linear-gradient(to right,${sc} ${pct}%,#3d2c48 ${pct}%)` }} />
+          <div style={{ display:"flex", gap:6 }}>
+            {[0,25,50,75,100].map(p => (
+              <button key={p} onClick={() => onChangeChance(p/100)} style={{ flex:1, background:pct===p?"#ff6b35":"#2a1e36", color:pct===p?"#000":"#555", border:`1px solid ${pct===p?"#ff6b35":"#3d2c48"}`, borderRadius:6, padding:"6px 0", fontSize:10, fontFamily:"inherit", fontWeight:900, cursor:"pointer" }}>{p}%</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ marginTop:14, fontSize:10, color:"#333", textAlign:"center", lineHeight:1.7 }}>{t.forgetHint}</div>
+
+        <button onClick={() => dirty && onSave(lang, forgetChance)} style={{ width:"100%", marginTop:16, background:dirty?"#2ecc71":"#0a2e1a", color:dirty?"#000":"#2ecc7188", border:"2px solid #2ecc71", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:dirty?"pointer":"default", letterSpacing:1, boxShadow:dirty?"0 0 16px rgba(46,204,113,0.4)":"none" }}>
+          {dirty ? t.saveSettings : t.settingsUpToDate}
+        </button>
+        {dirty && <div style={{ marginTop:8, fontSize:10, color:"#ff6b35", textAlign:"center", lineHeight:1.6 }}>{t.unsavedHint}</div>}
+      </div>
+    </>
+  );
+}
+
+// ── Card Modal ────────────────────────────────────────────────────────────────
+function CardModal({ index, currentValue, numbers, onSave, onRemove, onClose, t }) {
+  const initNum = (isEmpty(currentValue)||isForgot(currentValue)) ? null : isFix(currentValue) ? fixNum(currentValue) : currentValue;
+  const [selNum, setSelNum] = useState(initNum);
+  const [fixMode, setFixMode] = useState(isFix(currentValue));
+
+  const pickNum = n => { const s=String(n); setSelNum(s); onSave(fixMode?"FIX:"+s:s); };
+  const toggleFix = () => { const nf=!fixMode; setFixMode(nf); if(selNum!==null) onSave(nf?"FIX:"+selNum:selNum); };
+
+  return (
+    <>
+      <Backdrop onClick={onClose} zIndex={100} />
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", zIndex:101, background:"#1c1326", border:"2px solid #ff6b35", borderRadius:"20px 20px 0 0", padding:"20px 16px 40px", width:"100%", maxWidth:440, boxShadow:"0 -20px 60px rgba(255,107,53,0.2)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <span style={{ color:"#ff6b35", fontSize:12, letterSpacing:4, textTransform:"uppercase" }}>{t.cardTitle(index)}</span>
+          <span onClick={onClose} style={{ color:"#555", fontSize:20, cursor:"pointer" }}>✕</span>
+        </div>
+
+        <button onClick={toggleFix} style={{ width:"100%", marginBottom:12, background:fixMode?"#0a2e10":"#2a1e36", color:fixMode?"#2ecc71":"#555", border:fixMode?"2px solid #2ecc71":"2px solid #3d2c48", borderRadius:10, padding:"11px 0", fontFamily:"inherit", fontWeight:900, fontSize:14, cursor:"pointer", letterSpacing:2, boxShadow:fixMode?"0 0 14px rgba(46,204,113,0.3)":"none" }}>
+          🔒 FIX {fixMode?t.fixOn:t.fixOff} — {fixMode?t.fixOnDesc:t.fixOffDesc}
+        </button>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8, marginBottom:12 }}>
+          {numbers.map(n => {
+            const s=String(n), sel=s===selNum;
+            return (
+              <button key={n} onClick={() => pickNum(n)} style={{ background:`linear-gradient(180deg, ${roast(n).top}, ${roast(n).body})`, color:roast(n).ink, border:sel?`3px solid ${fixMode?"#2ecc71":"#ff6b35"}`:"3px solid transparent", borderRadius:"14px 14px 12px 12px", padding:"12px 4px", fontFamily:"inherit", fontWeight:700, fontSize:17, cursor:"pointer", transform:sel?"scale(1.08)":"none", boxShadow:sel?`0 0 14px ${fixMode?"rgba(46,204,113,0.6)":"rgba(255,107,53,0.6)"}`:"inset 0 -4px 6px rgba(0,0,0,0.15)", transition:"transform 0.1s" }}>{n}</button>
+            );
+          })}
+        </div>
+
+        <button onClick={() => onSave(null)} style={{ width:"100%", marginBottom:8, background:"transparent", color:"#555", border:"1px solid #3d2c48", borderRadius:8, padding:"10px 0", fontSize:12, fontFamily:"inherit", cursor:"pointer", letterSpacing:1 }}>{t.clearCard}</button>
+        <button onClick={() => onRemove(index)} style={{ width:"100%", background:"#1a0505", color:"#ff4d6d", border:"1px solid #4a1010", borderRadius:8, padding:"10px 0", fontSize:12, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:1 }}>{t.removeField}</button>
+      </div>
+    </>
+  );
+}
+
+// ── Slots ─────────────────────────────────────────────────────────────────────
+function GapSlot() {
+  return <div style={{ aspectRatio:"2/3", borderRadius:10, border:"1px solid #221830" }} />;
+}
+
+function PlusSlot({ onClick }) {
+  return (
+    <div onClick={onClick} style={{ aspectRatio:"2/3", borderRadius:10, border:"2px dashed #2ecc71", background:"#0a2010", display:"flex", alignItems:"center", justifyContent:"center", color:"#2ecc71", fontSize:30, fontWeight:900, cursor:"pointer", boxShadow:"0 0 14px rgba(46,204,113,0.25)", userSelect:"none" }}>＋</div>
+  );
+}
+
+// ── Marshmallow look ──────────────────────────────────────────────────────────
+// card panel colour by value, like the real cards
+const CARD_COLORS = [
+  { max:-1, body:"#ff8fc4", top:"#ffd6ea", ink:"#6e1442", badge:"#e0559a", label:"Party" },    // -4, -2 pink
+  { max: 2, body:"#8cc63f", top:"#c9e89a", ink:"#1f3a0a", badge:"#6aa52a", label:"Röststufe" }, // 0–2 green
+  { max: 5, body:"#5aa9e6", top:"#b5daf6", ink:"#0b2a45", badge:"#2f86cc", label:"Röststufe" }, // 3–5 blue
+  { max: 6, body:"#f6d04d", top:"#fff0a8", ink:"#4d3b00", badge:"#e8b21a", label:"Röststufe" }, // 6 yellow
+  { max: 7, body:"#f5a03c", top:"#ffd29c", ink:"#4a2500", badge:"#e07d12", label:"Röststufe" }, // 7 orange
+  { max: 8, body:"#e5413a", top:"#ffaaa5", ink:"#ffffff", badge:"#c0241e", label:"Röststufe" }, // 8 red
+  { max:11, body:"#1e1e24", top:"#5a5a66", ink:"#ffffff", badge:"#000000", label:"Aktion" },    // 9–11 black (agents)
+  { max:99, body:"#4b2fa0", top:"#8c74db", ink:"#ffffff", badge:"#1a1a1a", label:"Aktion" },    // 12–15 purple
+];
+const roast = n => CARD_COLORS.find(c => n <= c.max);
+
+// the marshmallow itself gets more toasted the higher the value
+const TOAST = ["#ffffff","#fdf8f0","#f7ecd8","#f0dcb8","#e9c995","#ddb07a","#c98f58","#a06a3c","#5a3820"];
+const toast = n => n < 0 || n > 8 ? "#ffffff" : TOAST[n];
+const isAgent = n => n >= 9 && n <= 11;
+
+// cartoon marshmallow seen from behind-ish: puffy body, two cheeks at the bottom,
+// big eyes; low cards happy, 6–8 singed and scared, 9–11 secret agents, minus cards party,
+// action cards 12–15 laugh and each get their own prop
+const BODY = "M5 17 Q5 5 30 5 Q55 5 55 17 L55 51 Q55 66 42 66 Q33 66 30 59 Q27 66 18 66 Q5 66 5 51 Z";
+const LOWER = "M5 40 L55 40 L55 51 Q55 66 42 66 Q33 66 30 59 Q27 66 18 66 Q5 66 5 51 Z";
+
+// magnifying glass held at the side (mirrored with side="left")
+function Lupe({ side }) {
+  const m = side === "left" ? "translate(60 0) scale(-1 1)" : undefined;
+  return (
+    <g transform={m}>
+      {/* arm holds the handle, glass points up and out */}
+      <path d="M54 44 Q58 45 60 43" stroke="#3b2a20" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <path d="M60 44 L65 37" stroke="#5a3a1a" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="69" cy="31" r="7" fill="#cfeaff" fillOpacity="0.55" stroke="#444" strokeWidth="2" />
+      <path d="M65 28 Q67 26 70 26" stroke="#fff" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+      <circle cx="60" cy="44" r="2.4" fill="#fff" stroke="#3b2a20" strokeWidth="1.1" />
+    </g>
+  );
+}
+
+// 8 is burnt to a pile of ash – only the scared face is left
+function AshPile({ size }) {
+  return (
+    <svg viewBox="0 0 60 72" style={{ width:size, display:"block", overflow:"visible" }}>
+      <defs>
+        <linearGradient id="ash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8a8a8a" /><stop offset="1" stopColor="#3d3d3d" /></linearGradient>
+      </defs>
+      {/* smoke */}
+      <path d="M24 26 Q20 18 26 12 Q31 6 27 -2" stroke="#d0d0d0" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.55" />
+      <path d="M36 28 Q41 20 36 13 Q32 7 37 0" stroke="#d0d0d0" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.4" />
+      {/* ash mound */}
+      <path d="M-4 68 Q0 50 12 44 Q16 32 28 33 Q34 27 42 34 Q54 38 58 52 Q64 58 64 68 Z" fill="url(#ash)" stroke="#2a2a2a" strokeWidth="1.4" />
+      <path d="M8 56 Q14 54 18 57 M40 60 Q46 57 52 60 M24 64 Q28 62 32 64" stroke="#2a2a2a" strokeWidth="1" fill="none" opacity="0.6" />
+      {/* glowing embers */}
+      <circle cx="12" cy="62" r="1.6" fill="#ff7a1a" /><circle cx="47" cy="55" r="1.3" fill="#ffb23a" /><circle cx="33" cy="66" r="1.4" fill="#ff5a1a" /><circle cx="20" cy="50" r="1" fill="#ffb23a" />
+      {/* face */}
+      <ellipse cx="24" cy="45" rx="4.5" ry="5" fill="#fff" stroke="#2a2a2a" strokeWidth="1.1" />
+      <ellipse cx="37" cy="45" rx="4.5" ry="5" fill="#fff" stroke="#2a2a2a" strokeWidth="1.1" />
+      <circle cx="24.5" cy="46" r="1.6" fill="#222" /><circle cx="36.5" cy="46" r="1.6" fill="#222" />
+      <path d="M26 56 Q30.5 52 35 56" stroke="#1a1a1a" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function Marshmallow({ n, size }) {
+  if (n === 8) return <AshPile size={size} />;
+  const fill = toast(n), line = "#3b2a20";
+  const agent = isAgent(n), party = n < 0, burnt = n >= 6 && n <= 8;
+  const masked = n === 10 || n === 14, shades = agent && !masked;
+  const happy = party || n <= 2 || n >= 12;
+  const mouth = happy ? "M24 34 Q30 41 36 34" : n <= 5 ? "M25 35 Q30 39 35 35" : agent ? "M26 36 Q31 38 35 34" : "M25 37 Q30 32 35 37";
+  return (
+    <svg viewBox="0 0 60 72" style={{ width:size, display:"block", overflow:"visible" }}>
+      <defs>
+        <clipPath id="mm-body"><path d={BODY} /></clipPath>
+        <path id="mm-ring" d="M30 -4 A40 40 0 1 1 29.99 -4" />
+      </defs>
+      {n === 15 && <g>
+        {/* special aura */}
+        <circle cx="30" cy="36" r="40" fill="#ffd23a" fillOpacity="0.12" stroke="#ffd23a" strokeWidth="1.5" strokeDasharray="3 3" />
+        <text fontSize="7" fontWeight="700" fill="#ffd23a" letterSpacing="1.2"><textPath href="#mm-ring">✦ SPEZIAL ✦ SPEZIAL ✦ SPEZIAL ✦ SPEZIAL ✦</textPath></text>
+      </g>}
+      {burnt && <g opacity={0.6 + (n-6)*0.2}>
+        <path d="M-6 62 Q-8 46 -1 38 Q-2 50 3 52 Q2 42 8 36 Q10 52 6 64 Z" fill="#ff7a1a" />
+        <path d="M66 62 Q68 46 61 38 Q62 50 57 52 Q58 42 52 36 Q50 52 54 64 Z" fill="#ff7a1a" />
+        <path d="M-3 62 Q-4 54 0 50 Q1 57 5 58 Z" fill="#ffd23a" />
+        <path d="M63 62 Q64 54 60 50 Q59 57 55 58 Z" fill="#ffd23a" />
+      </g>}
+      {party && <g>
+        <path d="M22 9 L30 -10 L38 9 Z" fill="#ffd23a" stroke={line} strokeWidth="1.2" />
+        <path d="M25 2 L35 2 M27 -4 L33 -4" stroke="#e0559a" strokeWidth="2" />
+        <circle cx="30" cy="-11" r="2.5" fill="#e0559a" />
+      </g>}
+      {/* body with two cheeks at the bottom */}
+      <path d={BODY} fill={fill} stroke={line} strokeWidth="1.6" />
+      <ellipse cx="30" cy="10.5" rx="20" ry="4" fill="#ffffff" opacity={n >= 7 && n <= 8 ? 0.15 : 0.7} />
+      <path d="M30 52 L30 59" stroke={line} strokeWidth="1.4" strokeLinecap="round" />
+      {burnt && <g fill="#3b2414" opacity={0.25 + (n-6)*0.2}>
+        <ellipse cx="17" cy="45" rx="4" ry="2.5" /><ellipse cx="42" cy="22" rx="3" ry="2" /><ellipse cx="40" cy="55" rx="4" ry="2.2" />
+      </g>}
+      {agent && <g>
+        {/* black suit, white shirt and tie */}
+        <path d={LOWER} fill="#111" stroke={line} strokeWidth="1.6" />
+        <path d="M23 40 L37 40 L30 52 Z" fill="#fff" />
+        <path d="M28.6 41 L31.4 41 L32.2 47 L30 50 L27.8 47 Z" fill="#c0241e" />
+      </g>}
+      {n === 14 && <g>
+        {/* robber abseils from the ceiling on a rope */}
+        <path d="M30 -60 L30 1" stroke="#a8743a" strokeWidth="3" />
+        <path d="M30 -60 L30 1" stroke="#6b4320" strokeWidth="3" strokeDasharray="2 3" />
+      </g>}
+      {n === 14 && <g>
+        {/* robber: striped shirt and black beanie */}
+        <path d={LOWER} fill="#fff" stroke={line} strokeWidth="1.6" />
+        <g clipPath="url(#mm-body)" fill="#111">
+          <rect x="0" y="43" width="60" height="3.5" /><rect x="0" y="50" width="60" height="3.5" /><rect x="0" y="57" width="60" height="3.5" /><rect x="0" y="64" width="60" height="3.5" />
+        </g>
+        <path d={LOWER} fill="none" stroke={line} strokeWidth="1.6" />
+        <path d="M5 15 Q5 1 30 1 Q55 1 55 15 Z" fill="#1a1a1a" stroke={line} strokeWidth="1.4" />
+        <rect x="4" y="12" width="52" height="5" rx="2.5" fill="#2e2e2e" stroke={line} strokeWidth="1.2" />
+        <circle cx="30" cy="0" r="3" fill="#2e2e2e" />
+        {/* arms up, hands gripping the rope */}
+        <path d="M6 30 Q-2 10 27 -7" stroke={line} strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        <path d="M54 30 Q62 8 33 -12" stroke={line} strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        <circle cx="28" cy="-7" r="2.6" fill="#fff" stroke={line} strokeWidth="1.1" />
+        <circle cx="32" cy="-12" r="2.6" fill="#fff" stroke={line} strokeWidth="1.1" />
+      </g>}
+      {/* eyes */}
+      {masked && <g>
+        {/* bandit eye mask with straps */}
+        <path d="M2 21 L-5 18 M2 24 L-5 27 M58 21 L65 18 M58 24 L65 27" stroke="#111" strokeWidth="2" strokeLinecap="round" />
+        <rect x="6" y="15" width="48" height="16" rx="8" fill="#111" />
+      </g>}
+      {shades ? <g>
+        <rect x="15" y="18" width="13" height="8" rx="3" fill="#000" />
+        <rect x="32" y="18" width="13" height="8" rx="3" fill="#000" />
+        <path d="M28 21 L32 21" stroke="#000" strokeWidth="1.5" />
+        <path d="M18 20 L21 19.3 M35 20 L38 19.3" stroke="#fff" strokeWidth="1" strokeLinecap="round" />
+      </g> : <g>
+        <ellipse cx="22" cy="23" rx="6" ry={burnt ? 7 : 6.4} fill="#fff" stroke={line} strokeWidth="1.2" />
+        <ellipse cx="38" cy="23" rx="6" ry={burnt ? 7 : 6.4} fill="#fff" stroke={line} strokeWidth="1.2" />
+        <circle cx="23" cy="24" r={burnt ? 2 : 3} fill="#222" />
+        <circle cx="37" cy="24" r={burnt ? 2 : 3} fill="#222" />
+        <circle cx="24" cy="22.5" r="1" fill="#fff" />
+        <circle cx="38" cy="22.5" r="1" fill="#fff" />
+      </g>}
+      {!agent && <g>
+        <ellipse cx="13" cy="31" rx="3.4" ry="1.9" fill="#ff5a87" opacity="0.4" />
+        <ellipse cx="47" cy="31" rx="3.4" ry="1.9" fill="#ff5a87" opacity="0.4" />
+      </g>}
+      <path d={mouth} stroke={line} strokeWidth="1.8" strokeLinecap="round" fill={happy ? "#c2185b" : "none"} />
+      {/* props */}
+      {(n === 9 || n === 13) && <Lupe side="right" />}
+      {n === 13 && <Lupe side="left" />}
+      {n === 12 && <g>
+        {/* two cards in hand */}
+        <path d="M54 42 Q60 41 62 36" stroke={line} strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        <rect x="57" y="20" width="11" height="16" rx="2" fill="#b5d334" stroke="#fff" strokeWidth="1.4" transform="rotate(-14 62 28)" />
+        <rect x="61" y="21" width="11" height="16" rx="2" fill="#9cbf1f" stroke="#fff" strokeWidth="1.4" transform="rotate(12 66 29)" />
+        <circle cx="62" cy="36" r="2.6" fill={fill} stroke={line} strokeWidth="1.2" />
+      </g>}
+    </svg>
+  );
+}
+
+// number badge like on the real cards; mirrored copy sits bottom right
+function Badge({ n, flip }) {
+  const r = roast(n), action = n > 8;
+  return (
+    <div style={{ position:"absolute", ...(flip ? { bottom:3, right:3, transform:"rotate(180deg)" } : { top:3, left:3 }), minWidth:28, height:28, padding:"0 4px", borderRadius:7, background:action ? "#fff" : r.badge, color:action ? "#111" : "#fff", border:"1.5px solid #fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, lineHeight:1, boxShadow:"0 1px 2px rgba(0,0,0,0.25)" }}>{n}</div>
+  );
+}
+
+// face-down card: lime back like the real game, with a dark swoosh
+const CARD_BACK = { background:"linear-gradient(160deg,#c8e04a,#9cbf1f)", border:"3px solid #fff" };
+const BackSwoosh = () => (
+  <svg viewBox="0 0 60 90" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%" }}>
+    {/* black "Y" rising from the bottom edge, like the real card backs */}
+    <path d="M28.4 92 L28.8 78 Q25 68 13 61 Q25 64 30 72 Q35 64 47 61 Q35 68 31.2 78 L31.6 92 Z" fill="#111" />
+  </svg>
+);
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+function Card({ value, index, onClick, shaking, highest }) {
+  const empty=isEmpty(value), forgot=isForgot(value), fix=isFix(value);
+  const n = cardNum(value), r = n !== null ? roast(n) : null;
+  const face = !empty && !forgot;
+  return (
+    <div onClick={() => onClick(index)} className={shaking?"card-shake":""} style={{ position:"relative", outline:highest?"3px solid #f1c40f":fix?"3px solid #2ecc71":"none", outlineOffset:2, ...(face ? { background:"#fff", border:"3px solid #fff" } : CARD_BACK), filter:forgot?"grayscale(0.7) brightness(0.7)":"none", borderRadius:10, aspectRatio:"2/3", cursor:"pointer", transition:"all 0.2s", boxShadow:fix?"0 0 16px rgba(46,204,113,0.35)":"0 4px 10px rgba(0,0,0,0.35)", userSelect:"none", overflow:"hidden" }}>
+      {face ? (
+        <div style={{ position:"absolute", inset:0, borderRadius:7, background:`linear-gradient(180deg, ${r.top} 0%, ${r.body} 55%)`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <Badge n={n} />
+          <div style={{ position:"absolute", top:11, left:34, fontSize:7, fontWeight:700, letterSpacing:0.5, textTransform:"uppercase", color:r.ink, opacity:0.8 }}>{r.label}</div>
+          <Marshmallow n={n} size="58%" />
+          <Badge n={n} flip />
+        </div>
+      ) : (
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <BackSwoosh />
+          <div style={{ position:"absolute", top:"17%", left:0, right:0, textAlign:"center", color:"#111", fontWeight:700, lineHeight:0.95, letterSpacing:0.3 }}>
+            <div style={{ fontSize:21 }}>ARSCH</div>
+            <div style={{ fontSize:13 }}>MALLOWS</div>
+          </div>
+          {forgot && <span style={{ position:"relative", top:6, fontSize:"1.9em" }}>💨</span>}
+        </div>
+      )}
+      {fix && <span style={{ position:"absolute", bottom:4, left:5, fontSize:12 }}>🔒</span>}
+      {highest && <span style={{ position:"absolute", top:3, right:5, fontSize:11, color:"#d4a106", textShadow:"0 0 3px #fff" }}>▲</span>}
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [lang, setLang]               = useState(STORED.lang);
+  const [mode, setMode]               = useState(STORED.mode);
+  const [cards, setCards]             = useState(STORED.cards);
+  const [cols, setCols]               = useState(STORED.cols);
+  const [openCard, setOpenCard]       = useState(null);
+  const [toast, setToast]             = useState(null);
+  const [shakingIdx, setShakingIdx]   = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [forgetChance, setForgetChance] = useState(STORED.forgetChance);
+  const [history, setHistory]         = useState(STORED.history);
+  const [dlg, setDlg]                 = useState(null);
+  const [placeMode, setPlaceMode]     = useState(false);
+
+  useEffect(() => { saveStore({ lang, mode, cards, cols, forgetChance, history }); }, [lang, mode, cards, cols, forgetChance, history]);
+
+  const setGrid = (arr, c) => { const g = normalize(arr, c); setCards(g.cards); setCols(g.cols); };
+  const freshGrid = m => { setCards(Array(MODES[m].startCards).fill(null)); setCols(BASE_COLS); };
+
+  const t = T[lang];
+  const numbers = MODES[mode].numbers;
+
+  const askMode   = key => { if(key===mode) return; setShowSettings(false); setDlg({type:"mode", data:key}); };
+  // removing a card always leaves its spot free
+  const removeCard = idx => {
+    setOpenCard(null);
+    const n = [...cards]; n[idx] = GAP; setGrid(n, cols);
+  };
+
+  // add a new empty card: in a gap, as a new top/bottom row, or in an extra side column
+  const placeCard = action => {
+    const a = padRows(cards, cols);
+    if (action.type==="cell")        { a[action.idx] = null; setGrid(a, cols); }
+    else if (action.type==="top")    { setGrid([...newRow(cols, action.col), ...a], cols); }
+    else if (action.type==="bottom") { setGrid([...a, ...newRow(cols, action.col)], cols); }
+    else if (action.type==="side")   { setGrid(addSide(a, cols, action.side, action.row), cols+1); }
+    setPlaceMode(false);
+  };
+  const askReset  = ()  => { setDlg({type:"reset"}); };
+
+  const saveSettings = (newLang, newChance) => {
+    setLang(newLang); setForgetChance(newChance); setShowSettings(false);
+    setToast({ msg: T[newLang].settingsSaved, type:"ok" });
+  };
+  const askRound  = ()  => { setDlg({type:"round"}); };
+  const askClearHistory = () => { setDlg({type:"clearHistory"}); };
+
+  const confirmDlg = () => {
+    const d = dlg; setDlg(null);
+    if (d.type==="mode")   { setMode(d.data); freshGrid(d.data); setOpenCard(null); }
+    else if (d.type==="reset")  { freshGrid(mode); }
+    else if (d.type==="round")  {
+      setHistory(prev => [...prev, { sum, mode, date: Date.now() }]);
+      freshGrid(mode);
+      setToast({ msg: t.toastRoundSaved(history.length+1, fmtSigned(sum)), type:"ok" });
+    }
+    else if (d.type==="clearHistory") { setHistory([]); }
+  };
+
+  const saveCard = val => {
+    const idx = openCard; setOpenCard(null);
+    if (val===null) { setCards(prev => { const n=[...prev]; n[idx]=null; return n; }); return; }
+    const next=[...cards]; next[idx]=val; setCards(next);
+    if (isFix(val)) return;
+    setTimeout(() => {
+      const targets = next.map((v,i)=>({v,i})).filter(({v,i})=>isNormal(v)&&i!==idx).map(({i})=>i);
+      if (!targets.length) return;
+      if (Math.random()<forgetChance) {
+        const victim = targets[Math.floor(Math.random()*targets.length)];
+        const lost = next[victim];
+        setCards(prev => { const n=[...prev]; n[victim]=FORGOT; return n; });
+        setShakingIdx(victim); setTimeout(()=>setShakingIdx(null),500);
+        const restore = () => {
+          setCards(prev => { if (!isForgot(prev[victim])) return prev; const n=[...prev]; n[victim]=lost; return n; });
+          setTimeout(() => setToast({ msg: t.toastRestored(victim), type:"ok" }), 50);
+        };
+        setToast({ msg: t.toastForgot(idx, victim), type:"forgot", action: { label: t.undo, onClick: restore } });
+      }
+    }, 300);
+  };
+
+  const filled  = cards.filter(isNormal).length;
+  const fixedC  = cards.filter(isFix).length;
+  const forgotC = cards.filter(isForgot).length;
+  const slots   = cards.filter(v => !isGap(v)).length;
+  const pct     = Math.round(forgetChance*100);
+
+  const sum = cards.reduce((acc, v) => acc + (cardNum(v) ?? 0), 0);
+
+  // highest swappable card above the deck average gets a marker
+  const avgNum = numbers.reduce((a,b) => a+b, 0) / numbers.length;
+  let highestIdx = null;
+  cards.forEach((v,i) => { if (isNormal(v) && cardNum(v) > avgNum && (highestIdx===null || cardNum(v) > cardNum(cards[highestIdx]))) highestIdx = i; });
+
+  // build the visible grid; in place mode it gets ＋ in every gap. The grid always grows
+  // as a rectangle: a new ＋ row above/below or the extra side column only appears
+  // once every spot of the current grid is filled
+  const rows = Math.max(1, Math.ceil(cards.length / cols));
+  const padded = padRows(cards, cols);
+  const complete = padded.length > 0 && padded.every(v => !isGap(v));
+  const side = placeMode && complete && cols < MAX_COLS ? 1 : 0;
+  const topRow = placeMode && complete ? 1 : 0;
+  const bottomRow = topRow;
+  const dispCols = cols + 2*side;
+  const cells = [];
+  for (let r = -topRow; r < rows + bottomRow; r++) {
+    for (let c = -side; c < cols + side; c++) {
+      const key = r + ":" + c;
+      const inRow = r >= 0 && r < rows, inCol = c >= 0 && c < cols;
+      if (!inRow && !inCol) { cells.push(<div key={key} />); continue; }
+      if (!inRow) { cells.push(<PlusSlot key={key} onClick={() => placeCard({ type: r < 0 ? "top" : "bottom", col: c })} />); continue; }
+      if (!inCol) { cells.push(<PlusSlot key={key} onClick={() => placeCard({ type:"side", side: c < 0 ? "left" : "right", row: r })} />); continue; }
+      const idx = r*cols + c, val = idx < cards.length ? cards[idx] : GAP;
+      if (isGap(val)) cells.push(placeMode ? <PlusSlot key={key} onClick={() => placeCard({ type:"cell", idx })} /> : <GapSlot key={key} />);
+      else cells.push(<Card key={key} value={val} index={idx} onClick={placeMode ? () => {} : setOpenCard} shaking={shakingIdx===idx} highest={highestIdx===idx} />);
+    }
+  }
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#0f0a24 0%,#1c1236 45%,#2a1424 100%)", overflow:"hidden", display:"flex", flexDirection:"column", alignItems:"center", padding:"28px 20px 48px", position:"relative" }}>
+
+      {/* Campfire night backdrop */}
+      <div className="stars" style={{ position:"fixed", zIndex:0 }} />
+      <div className="fire-glow" style={{ position:"fixed", zIndex:0 }} />
+
+      {/* Zurück zum Startmenü der gemeinsamen App */}
+      <button aria-label="Startmenü" onClick={()=>{ location.href="../"; }} style={{ position:"absolute", top:20, left:20, background:"transparent", border:"1px solid #3d2c48", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20, zIndex:2 }}>🏠</button>
+
+      {/* Gear */}
+      <button className="gear-btn" onClick={()=>setShowSettings(true)} style={{ position:"absolute", top:20, right:20, background:"transparent", border:"1px solid #3d2c48", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20 }}>⚙️</button>
+
+      {/* Header */}
+      <div style={{ textAlign:"center", marginBottom:10 }}>
+        <div style={{ display:"flex", justifyContent:"center", alignItems:"flex-end", gap:6, marginBottom:6 }}>
+          <div style={{ transform:"rotate(-12deg)", fontSize:11 }}><Marshmallow n={0} size={30} /></div>
+          <div style={{ fontSize:30 }} className="flame">🔥</div>
+          <div style={{ transform:"rotate(12deg)", fontSize:11 }}><Marshmallow n={5} size={30} /></div>
+        </div>
+        <div style={{ fontSize:11, letterSpacing:4, color:"#ffb27a", textTransform:"uppercase", marginBottom:2 }}>{t.tagline}</div>
+        <h1 style={{ fontSize:34, fontWeight:700, color:"#fff4e6", margin:0, letterSpacing:1, textShadow:"0 2px 0 #c97a3d, 0 4px 0 #7a4526, 0 0 24px rgba(255,140,60,0.45)" }}>ARSCHMALLOWS</h1>
+        <div style={{ display:"inline-block", fontSize:11, color:"#2a1424", background:"#ffb6d9", borderRadius:20, padding:"2px 12px", marginTop:8, fontWeight:700, letterSpacing:1 }}>{MODES[mode].label.toUpperCase()}</div>
+        <div style={{ fontSize:11, color:"#9a86a8", marginTop:6, letterSpacing:1 }}>{slots} {t.statTotal}</div>
+        <div style={{ fontSize:11, color:"#9a86a8", marginTop:2 }}>
+          {t.forgetLabel}: <span style={{ color:pct===0?"#2ecc71":pct<40?"#f1c40f":"#ff4d6d" }}>{pct}%</span>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display:"flex", gap:14, marginBottom:20, flexWrap:"wrap", justifyContent:"center", fontSize:11 }}>
+        <span style={{color:"#ff6b35"}}>✓ {filled} {t.statFilled}</span>
+        <span style={{color:"#333"}}>·</span>
+        <span style={{color:"#2ecc71"}}>🔒 {fixedC} {t.statFix}</span>
+        <span style={{color:"#333"}}>·</span>
+        <span style={{color:"#ff4d6d"}}>💨 {forgotC} {t.statForgot}</span>
+        <span style={{color:"#333"}}>·</span>
+        <span style={{color:"#444"}}>○ {slots-filled-fixedC-forgotC} {t.statEmpty} · {slots} {t.statTotal}</span>
+      </div>
+
+      {/* Grid */}
+      <div className="card-grid" style={{ display:"grid", gridTemplateColumns:`repeat(${dispCols},1fr)`, gap:10, width:"100%", maxWidth:dispCols*100, marginBottom:20 }}>
+        {cells}
+      </div>
+      {placeMode && <div style={{ fontSize:11, color:"#2ecc71", textAlign:"center", marginBottom:14 }}>{t.placeHint}</div>}
+
+      {/* Hint */}
+      <div style={{ fontSize:11, color:"#3a3a4a", textAlign:"center", marginBottom:14, lineHeight:1.9 }}>
+        {t.tapHint}<br/>
+        <span style={{color:"#2ecc7166"}}>{t.fixHint}</span><br/>
+        <span style={{color:"#ff4d6d44"}}>{t.chanceHint(pct)}</span>
+      </div>
+
+      {/* Add card */}
+      <button onClick={()=>setPlaceMode(p=>!p)} style={{ background:"#2a1e36", color:placeMode?"#888":"#ff6b35", border:`2px dashed ${placeMode?"#444":"#ff6b35"}`, borderRadius:10, padding:"11px 28px", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:2, marginBottom:10, width:"100%", maxWidth:300 }}>{placeMode ? t.placeCancel : t.addCard}</button>
+
+      {/* Sum */}
+      <div style={{ width:"100%", maxWidth:300, marginBottom:14, background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:"14px 0", textAlign:"center" }}>
+        <div style={{ fontSize:11, color:"#555", letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>{t.sum}</div>
+        <div style={{ fontSize:36, fontWeight:900, fontFamily:"inherit", color: sum>0?"#ff6b35":sum<0?"#ff4d6d":"#666", textShadow: sum!==0?`0 0 20px ${sum>0?"rgba(255,107,53,0.4)":"rgba(255,77,109,0.4)"}`:""  }}>
+          {sum>0?"+":""}{sum}
+        </div>
+      </div>
+
+      <Tips cards={cards} numbers={numbers} sum={sum} t={t} />
+
+      {/* Save round */}
+      <button onClick={askRound} style={{ background:"#0a2e1a", color:"#2ecc71", border:"2px solid #2ecc71", borderRadius:10, padding:"11px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:2, marginBottom:10, width:"100%", maxWidth:300 }}>{t.saveRound}</button>
+
+      {/* Reset */}
+      <button onClick={askReset} style={{ background:"transparent", color:"#444", border:"1px solid #3d2c48", borderRadius:8, padding:"9px 22px", fontSize:12, fontFamily:"inherit", cursor:"pointer", letterSpacing:1 }}>{t.newGame}</button>
+
+      <History history={history} onAskClear={askClearHistory} t={t} />
+
+      <div style={{ marginTop:14, fontSize:10, color:"#333", textAlign:"center" }}>{t.savedHint}</div>
+      <div style={{ marginTop:14, fontSize:10, color:"#222", textAlign:"center" }}>{t.footer}</div>
+
+      {/* Overlays */}
+      {showSettings && <SettingsPanel forgetChance={forgetChance} lang={lang} onSave={saveSettings} mode={mode} onChangeMode={askMode} onClose={()=>setShowSettings(false)} />}
+      {openCard!==null && <CardModal index={openCard} currentValue={cards[openCard]} numbers={numbers} onSave={saveCard} onRemove={removeCard} onClose={()=>setOpenCard(null)} t={t} />}
+      {toast && <Toast key={toast.msg} message={toast.msg} type={toast.type} action={toast.action} onDone={()=>setToast(null)} />}
+
+      {dlg&&dlg.type==="mode"   && <Dialog icon="🔀" title={t.switchTitle(MODES[dlg.data].label)} message={t.switchMsg(MODES[dlg.data].startCards)} confirmLabel={t.switchConfirm} confirmColor="#f1c40f" cancelLabel={t.cancel} onConfirm={confirmDlg} onCancel={()=>setDlg(null)} />}
+      {dlg&&dlg.type==="round"  && <Dialog icon="💾" title={t.roundTitle} message={t.roundMsg(fmtSigned(sum))} confirmLabel={t.roundConfirm} confirmColor="#2ecc71" cancelLabel={t.cancel} onConfirm={confirmDlg} onCancel={()=>setDlg(null)} />}
+      {dlg&&dlg.type==="clearHistory" && <Dialog icon="🗑" title={t.clearHistoryTitle} message={t.clearHistoryMsg} confirmLabel={t.clearHistoryConfirm} confirmColor="#ff4d6d" cancelLabel={t.cancel} onConfirm={confirmDlg} onCancel={()=>setDlg(null)} />}
+      {dlg&&dlg.type==="reset"  && <Dialog icon="↺" title={t.resetTitle} message={t.resetMsg} confirmLabel={t.resetConfirm} confirmColor="#ff6b35" cancelLabel={t.cancel} onConfirm={confirmDlg} onCancel={()=>setDlg(null)} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+</script>
+</body>
+</html>
