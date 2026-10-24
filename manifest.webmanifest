@@ -1,7 +1,7 @@
 {
   "name": "Kartenkosmos",
   "short_name": "Kartenkosmos",
-  "description": "Kartenkosmos – Helfer für eure Kartenspiele: Wizard Block, Arschmallows und mehr",
+  "description": "Kartenkosmos – Helfer für eure Kartenspiele: Wizard Block, Kniffel, Arschmallows und mehr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
