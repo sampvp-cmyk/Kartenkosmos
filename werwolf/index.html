@@ -45,7 +45,7 @@
 
 const { useState, useEffect } = React;
 
-const STORAGE_KEY = "werwolf-v1";
+const STORAGE_KEY = "werwolf-v2"; // v2: erweiterte Rollen, alte Spiele sind nicht kompatibel
 
 const C = {
   card: "var(--card)", card2: "var(--card2)", line: "var(--line)", text: "var(--text)", dim: "var(--dim)",
@@ -53,33 +53,92 @@ const C = {
 };
 
 // ── Rollen ────────────────────────────────────────────────────────────────────
+// team: village / wolf / solo; count: wie viele Karten der Schalter ins Spiel bringt
 const ROLES = {
   wolf: { name: "Werwolf", plural: "Werwölfe", emoji: "🐺", team: "wolf",
     desc: "Wacht nachts mit den anderen Werwölfen auf und sucht sich ein Opfer aus. Tagsüber tust du so, als wärst du ein harmloser Dorfbewohner." },
   villager: { name: "Dorfbewohner", plural: "Dorfbewohner", emoji: "🧑‍🌾", team: "village",
     desc: "Du hast keine Sonderfähigkeit – aber deine Stimme zählt! Findet tagsüber gemeinsam die Werwölfe." },
-  seer: { name: "Seherin", plural: "Seherinnen", emoji: "🔮", team: "village",
+  // Grundspiel
+  seer: { name: "Seherin", emoji: "🔮", team: "village",
     desc: "Du darfst jede Nacht die Karte eines Spielers ansehen. Nutze dein Wissen geschickt, ohne dich zu verraten." },
-  witch: { name: "Hexe", plural: "Hexen", emoji: "🧪", team: "village",
-    desc: "Du hast einen Heiltrank (rettet das Opfer der Werwölfe) und einen Gifttrank (tötet einen Spieler). Jeden nur einmal im Spiel." },
-  hunter: { name: "Jäger", plural: "Jäger", emoji: "🏹", team: "village",
+  witch: { name: "Hexe", emoji: "🧪", team: "village",
+    desc: "Du hast einen Heiltrank (rettet ein Opfer der Werwölfe) und einen Gifttrank (tötet einen Spieler). Jeden nur einmal im Spiel." },
+  hunter: { name: "Jäger", emoji: "🏹", team: "village",
     desc: "Wenn du stirbst, nimmst du mit einem letzten Schuss einen Spieler deiner Wahl mit in den Tod." },
-  amor: { name: "Amor", plural: "Amor", emoji: "💘", team: "village",
+  amor: { name: "Amor", emoji: "💘", team: "village",
     desc: "In der ersten Nacht verliebst du zwei Spieler ineinander. Stirbt einer der beiden, stirbt der andere vor Kummer." },
-  guard: { name: "Beschützer", plural: "Beschützer", emoji: "🛡️", team: "village",
+  girl: { name: "Mädchen", emoji: "👧", team: "village",
+    desc: "Du darfst nachts heimlich blinzeln, während die Werwölfe wach sind. Erwischen sie dich dabei, können sie dich stattdessen fressen." },
+  // Neumond
+  guard: { name: "Beschützer", emoji: "🛡️", team: "village",
     desc: "Du schützt jede Nacht einen Spieler vor den Werwölfen – auch dich selbst, aber nie zweimal hintereinander denselben." },
+  elder: { name: "Dorfältester", emoji: "👴", team: "village",
+    desc: "Du überlebst den ersten Angriff der Werwölfe. Tötet dich aber das Dorf, die Hexe oder der Jäger, verlieren alle Dorfbewohner ihre Sonderfähigkeiten." },
+  scapegoat: { name: "Sündenbock", emoji: "🐐", team: "village",
+    desc: "Endet die Abstimmung unentschieden, stirbst du – an Stelle der anderen." },
+  idiot: { name: "Dorfdepp", emoji: "🤪", team: "village",
+    desc: "Verurteilt dich das Dorf, zeigst du deine Karte und bleibst am Leben – darfst aber ab dann nicht mehr abstimmen." },
+  piper: { name: "Flötenspieler", emoji: "🪈", team: "solo",
+    desc: "Du spielst allein: Jede Nacht verzauberst du zwei Spieler. Sind alle anderen Lebenden verzaubert, gewinnst du." },
+  // Charaktere
+  wildchild: { name: "Wildes Kind", emoji: "🧒", team: "village",
+    desc: "In der ersten Nacht wählst du ein Vorbild. Stirbt dein Vorbild, wirst du zum Werwolf." },
+  wolfdog: { name: "Wolfshund", emoji: "🐕", team: "village",
+    desc: "In der ersten Nacht entscheidest du, ob du als Dorfbewohner oder als Werwolf spielst." },
+  sister: { name: "Schwester", plural: "Zwei Schwestern", emoji: "👭", team: "village", count: 2,
+    desc: "Ihr seid zwei Schwestern, kennt euch und haltet zusammen." },
+  brother: { name: "Bruder", plural: "Drei Brüder", emoji: "👬", team: "village", count: 3,
+    desc: "Ihr seid drei Brüder, kennt euch und haltet zusammen." },
+  fox: { name: "Fuchs", emoji: "🦊", team: "village",
+    desc: "Du zeigst nachts auf einen Spieler. Ist er oder einer seiner Nachbarn ein Werwolf, behältst du deine Kraft – sonst verlierst du sie." },
+  bear: { name: "Bärenführer", emoji: "🐻", team: "village",
+    desc: "Sitzt neben dir ein Werwolf, brummt dein Bär jeden Morgen und warnt das Dorf." },
+  knight: { name: "Ritter mit der rostigen Klinge", short: "Rostiger Ritter", emoji: "🗡️", team: "village",
+    desc: "Fressen dich die Werwölfe, steckt sich der erste Werwolf links von dir an deiner rostigen Klinge an und stirbt in der nächsten Nacht." },
+  judge: { name: "Stotternder Richter", emoji: "⚖️", team: "village",
+    desc: "Einmal im Spiel darfst du nach einer Abstimmung eine zweite Abstimmung am selben Tag verlangen." },
+  angel: { name: "Engel", emoji: "😇", team: "solo",
+    desc: "Stirbst du in der ersten Runde, gewinnst du sofort allein. Sonst spielst du als einfacher Dorfbewohner weiter." },
+  urwolf: { name: "Urwolf", emoji: "🧛", team: "wolf",
+    desc: "Ein Werwolf, der einmal im Spiel das Opfer infizieren kann, statt es zu fressen. Das Opfer wird heimlich zum Werwolf." },
+  bigwolf: { name: "Großer böser Wolf", emoji: "🐗", team: "wolf",
+    desc: "Ein Werwolf, der jede Nacht ein zweites Opfer frisst – solange noch kein Werwolf gestorben ist." },
+  whitewolf: { name: "Weißer Werwolf", emoji: "🐻‍❄️", team: "solo",
+    desc: "Du wachst mit den Werwölfen auf, darfst aber jede zweite Nacht heimlich einen Werwolf töten. Du gewinnst nur, wenn du als Letzter übrig bleibst." },
+  // weitere bekannte Varianten
+  raven: { name: "Rabe", emoji: "🐦‍⬛", team: "village",
+    desc: "Du markierst nachts einen Spieler. Er hat am nächsten Tag zwei Stimmen mehr gegen sich." },
+  apprentice: { name: "Seher-Lehrling", emoji: "📖", team: "village",
+    desc: "Stirbt die Seherin, übernimmst du ihre Fähigkeit und darfst jede Nacht eine Karte ansehen." },
+  lycan: { name: "Lykanthrop", emoji: "🌕", team: "village",
+    desc: "Du gehörst zum Dorf – aber die Seherin sieht dich als Werwolf." },
+  cursed: { name: "Verfluchter", emoji: "🧿", team: "village",
+    desc: "Du bist ein Dorfbewohner, bis die Werwölfe dich angreifen. Dann stirbst du nicht, sondern wirst selbst zum Werwolf." },
+  prince: { name: "Prinz", emoji: "🤴", team: "village",
+    desc: "Verurteilt dich das Dorf, zeigst du deine Karte und wirst begnadigt – das klappt nur einmal." },
+  tough: { name: "Harter Bursche", emoji: "💪", team: "village",
+    desc: "Greifen dich die Werwölfe an, stirbst du erst in der folgenden Nacht." },
 };
-const SPECIAL = ["seer", "witch", "hunter", "amor", "guard"];
-const MIN_PLAYERS = 4;
 
-// Vorschlag je nach Spielerzahl
-function suggestRoles(n) {
-  return {
-    wolf: Math.max(1, Math.round(n / 4.5)),
-    seer: n >= 5 ? 1 : 0, witch: n >= 6 ? 1 : 0, hunter: n >= 7 ? 1 : 0, amor: n >= 8 ? 1 : 0, guard: n >= 10 ? 1 : 0,
-  };
-}
-const villagerCount = (n, roles) => n - Object.values(roles).reduce((a, b) => a + b, 0);
+const SETS = [
+  { name: "Grundspiel", roles: ["seer", "witch", "hunter", "amor", "girl"] },
+  { name: "Neumond", roles: ["guard", "elder", "scapegoat", "idiot", "piper"] },
+  { name: "Charaktere", roles: ["wildchild", "wolfdog", "sister", "brother", "fox", "bear", "knight", "judge", "angel", "urwolf", "bigwolf", "whitewolf"] },
+  { name: "Weitere Rollen", note: "Bekannte Rollen aus anderen Werwolf-Varianten.", roles: ["raven", "apprentice", "lycan", "cursed", "prince", "tough"] },
+];
+const AUTO_ROLES = ["seer", "witch", "hunter", "amor"];
+const WOLF_ROLES = ["wolf", "urwolf", "bigwolf", "whitewolf"];
+const MIN_PLAYERS = 4;
+const roleName = (r) => ROLES[r].short || ROLES[r].name;
+
+const autoWolves = (n, roles) => {
+  const extra = ["urwolf", "bigwolf", "whitewolf"].filter((r) => roles[r]).length;
+  return Math.max(extra ? 0 : 1, Math.round(n / 4.5) - extra);
+};
+const autoRoles = (n) => ({ seer: n >= 5 ? 1 : 0, witch: n >= 6 ? 1 : 0, hunter: n >= 7 ? 1 : 0, amor: n >= 8 ? 1 : 0 });
+const cardCount = (roles) => Object.entries(roles).reduce((a, [r, on]) => a + (r === "wolf" ? on : on ? ROLES[r].count || 1 : 0), 0);
+const wolfTeam = (roles) => roles.wolf + ["urwolf", "bigwolf", "whitewolf"].filter((r) => roles[r]).length;
 
 const shuffle = (arr) => {
   const a = [...arr];
@@ -88,34 +147,76 @@ const shuffle = (arr) => {
 };
 
 // ── Spiellogik ────────────────────────────────────────────────────────────────
-function newGame(names, roles, showRoles) {
+function newGame(names, roles, opts) {
   const deck = [];
-  Object.entries(roles).forEach(([r, k]) => { for (let i = 0; i < k; i++) deck.push(r); });
+  Object.entries(roles).forEach(([r, on]) => {
+    const k = r === "wolf" ? on : on ? ROLES[r].count || 1 : 0;
+    for (let i = 0; i < k; i++) deck.push(r);
+  });
   while (deck.length < names.length) deck.push("villager");
   const dealt = shuffle(deck);
   return {
-    created: Date.now(), showRoles,
-    players: names.map((name, i) => ({ name, role: dealt[i], alive: true, lover: false })),
+    created: Date.now(), showRoles: opts.showRoles, captainOn: opts.captain,
+    players: names.map((name, i) => ({ name, role: dealt[i], alive: true })),
     phase: "reveal", revealIdx: 0,
     night: 0, steps: [], step: 0, nd: {}, lastProtect: null,
     potions: { heal: true, poison: true },
-    announce: null, pendingHunters: [], winner: null, log: [],
+    announce: null, pendingHunters: [], pendingCaptain: false, captain: null, winner: null, log: [],
+    delayed: [], raven: null, elderHit: false, powersLost: false, foxLost: false, wolfDied: false, infectUsed: false, judgeUsed: false, angelWon: false,
   };
 }
 
-const hasRole = (g, r) => g.players.some((p) => p.role === r);
-const aliveWith = (g, r) => g.players.some((p) => p.role === r && p.alive);
+const isWolf = (p) => WOLF_ROLES.includes(p.role) || !!p.infected;
+const hasRole = (g, r) => g.players.some((p) => p.role === r || p.orig === r);
 const alive = (g) => g.players.map((p, i) => i).filter((i) => g.players[i].alive);
+const holders = (g, r) => g.players.map((p, i) => i).filter((i) => g.players[i].role === r);
+const firstAlive = (g, r) => holders(g, r).find((i) => g.players[i].alive);
+const nameList = (g, ids) => ids.map((i) => g.players[i].name).join(", ");
+
+// nächste lebende Nachbarn in Sitzreihenfolge (links = nächster in der Liste)
+function neighbours(g, i) {
+  const n = g.players.length, res = [];
+  for (const dir of [1, -1]) {
+    for (let k = 1; k < n; k++) {
+      const j = (i + dir * k + n * n) % n;
+      if (j === i) break;
+      if (g.players[j].alive) { if (!res.includes(j)) res.push(j); break; }
+    }
+  }
+  return res;
+}
 
 // Rollen werden auch aufgerufen, wenn sie schon tot sind – sonst merkt der Tisch, wer gestorben ist
 function nightSteps(g) {
   const s = [];
-  if (g.night === 1 && hasRole(g, "amor")) s.push("amor");
-  if (hasRole(g, "guard")) s.push("guard");
+  const has = (r) => hasRole(g, r);
+  if (g.night === 1) ["amor", "wildchild", "wolfdog", "sister", "brother"].forEach((r) => has(r) && s.push(r));
+  if (has("guard")) s.push("guard");
+  if (has("seer") || has("apprentice")) s.push("seer");
+  if (has("fox")) s.push("fox");
   s.push("wolf");
-  if (hasRole(g, "seer")) s.push("seer");
-  if (hasRole(g, "witch")) s.push("witch");
+  if (has("whitewolf") && g.night % 2 === 0) s.push("whitewolf");
+  if (has("bigwolf")) s.push("bigwolf");
+  if (has("witch")) s.push("witch");
+  if (has("piper")) s.push("piper");
+  if (has("raven")) s.push("raven");
   return s;
+}
+
+// Wer handelt in diesem Schritt? null = tot oder ohne Kraft
+function actor(g, kind) {
+  if (kind === "wolf") return g.players.some((p) => p.alive && isWolf(p)) ? -1 : null;
+  if (ROLES[kind].team === "village" && g.powersLost) return null;
+  if (kind === "fox" && g.foxLost) return null;
+  if (kind === "bigwolf" && g.wolfDied) return null;
+  if (kind === "seer") {
+    const s = firstAlive(g, "seer");
+    return s != null ? s : firstAlive(g, "apprentice") ?? null;
+  }
+  if (kind === "sister" || kind === "brother") return holders(g, kind).some((i) => g.players[i].alive) ? -1 : null;
+  // Wolfshund hat nach seiner Wahl schon eine neue Rolle (falls man zurückblättert)
+  const i = g.players.findIndex((p) => p.alive && (p.role === kind || (kind === "wolfdog" && p.orig === kind)));
+  return i >= 0 ? i : null;
 }
 
 function startNight(g) {
@@ -124,8 +225,8 @@ function startNight(g) {
   return n;
 }
 
-// Tote eintragen, Liebespaar mitnehmen, Jäger vormerken
-function applyDeaths(g, ids) {
+// Tote eintragen, Liebespaar mitnehmen, Folgen auslösen (Jäger, Hauptmann, Wildes Kind, Dorfältester, Engel)
+function applyDeaths(g, ids, wolfKills = []) {
   const players = g.players.map((p) => ({ ...p }));
   const dead = [];
   const queue = [...ids];
@@ -136,16 +237,67 @@ function applyDeaths(g, ids) {
     dead.push(id);
     if (players[id].lover) players.forEach((p, j) => { if (p.lover && p.alive && j !== id) queue.push(j); });
   }
-  const hunters = dead.filter((i) => players[i].role === "hunter");
-  return { ...g, players, pendingHunters: [...g.pendingHunters, ...hunters], _dead: dead };
+  let n = { ...g, players };
+  dead.forEach((i) => {
+    const p = players[i];
+    if (isWolf(p)) n.wolfDied = true;
+    if (p.role === "elder" && !wolfKills.includes(i)) n.powersLost = true;
+    if (p.role === "angel" && g.night <= 1) n.angelWon = true;
+    if (i === g.captain) n.pendingCaptain = true;
+  });
+  players.forEach((p) => { if (p.alive && p.role === "wildchild" && dead.includes(p.model)) { p.orig = "wildchild"; p.role = "wolf"; } });
+  const hunters = n.powersLost ? [] : dead.filter((i) => players[i].role === "hunter");
+  return { ...n, pendingHunters: [...g.pendingHunters, ...hunters], _dead: dead };
+}
+
+function finishNight(g) {
+  const nd = g.nd;
+  const players = g.players.map((p) => ({ ...p }));
+  let { elderHit, infectUsed, foxLost } = g;
+  const deaths = g.delayed.filter((i) => players[i].alive), wolfKills = [], delayed = [];
+  const attack = (i) => {
+    if (i == null || i === nd.protect || i === nd.heal) return;
+    const p = players[i];
+    if (nd.infect && i === nd.victim) { p.infected = true; infectUsed = true; return; }
+    if (p.role === "elder" && !elderHit) { elderHit = true; return; }
+    if (p.role === "cursed") { p.orig = "cursed"; p.role = "wolf"; return; }
+    if (p.role === "tough") { delayed.push(i); return; }
+    deaths.push(i); wolfKills.push(i);
+    if (p.role === "knight" && !g.powersLost) {
+      const n = players.length;
+      for (let k = 1; k < n; k++) { const j = (i + k) % n; if (players[j].alive && isWolf(players[j])) { delayed.push(j); break; } }
+    }
+  };
+  attack(nd.victim);
+  attack(nd.bigVictim);
+  if (nd.whiteVictim != null) deaths.push(nd.whiteVictim);
+  if (nd.poison != null) deaths.push(nd.poison);
+  (nd.charm || []).forEach((i) => { players[i].charmed = true; });
+  if (nd.fox != null && ![nd.fox, ...neighbours(g, nd.fox)].some((i) => isWolf(g.players[i]))) foxLost = true;
+  const potions = { heal: g.potions.heal && nd.heal == null, poison: g.potions.poison && nd.poison == null };
+
+  let n = applyDeaths({ ...g, players, potions, elderHit, infectUsed, foxLost, delayed, raven: nd.raven ?? null, lastProtect: nd.protect ?? null },
+    [...new Set(deaths)], wolfKills);
+  const notes = [];
+  const bear = firstAlive(n, "bear");
+  if (bear != null && !n.powersLost) notes.push(neighbours(n, bear).some((i) => isWolf(n.players[i])) ? "🐻 Grrr! Der Bär brummt – neben dem Bärenführer sitzt ein Werwolf!" : "🐻 Der Bär bleibt ruhig.");
+  if (n.raven != null && n.players[n.raven].alive) notes.push(`🐦‍⬛ Der Rabe hat ${n.players[n.raven].name} markiert: heute 2 Stimmen mehr gegen ${n.players[n.raven].name}.`);
+  const names = n._dead.map((i) => g.players[i].name);
+  return { ...n, phase: "announce", log: [...g.log, `Nacht ${g.night}: ${names.length ? "† " + names.join(", ") : "niemand gestorben"}`],
+    announce: { title: `☀️ Morgen nach Nacht ${g.night}`, dead: n._dead, notes, empty: "Das Dorf erwacht – heute Nacht ist niemand gestorben!", next: "day" } };
 }
 
 function winner(g) {
+  if (g.angelWon) return "angel";
   const a = alive(g);
-  const wolves = a.filter((i) => g.players[i].role === "wolf").length;
-  if (a.length === 2 && a.every((i) => g.players[i].lover) && g.players[a[0]].role === "wolf" !== (g.players[a[1]].role === "wolf")) return "lovers";
   if (a.length === 0) return "none";
-  if (wolves === 0) return "village";
+  const piper = a.find((i) => g.players[i].role === "piper");
+  if (piper != null && a.every((i) => i === piper || g.players[i].charmed)) return "piper";
+  if (a.length === 2 && a.every((i) => g.players[i].lover) && isWolf(g.players[a[0]]) !== isWolf(g.players[a[1]])) return "lovers";
+  const wolves = a.filter((i) => isWolf(g.players[i])).length;
+  const white = a.find((i) => g.players[i].role === "whitewolf");
+  if (white != null) return a.length === 1 ? "white" : null;
+  if (wolves === 0) return piper != null ? null : "village";
   if (wolves >= a.length - wolves) return "wolf";
   return null;
 }
@@ -154,28 +306,22 @@ const WIN = {
   village: { emoji: "🏡", title: "Das Dorf gewinnt!", text: "Alle Werwölfe sind besiegt." },
   wolf: { emoji: "🐺", title: "Die Werwölfe gewinnen!", text: "Das Dorf ist den Werwölfen nicht mehr gewachsen." },
   lovers: { emoji: "💞", title: "Das Liebespaar gewinnt!", text: "Nur noch die beiden Verliebten sind übrig." },
+  piper: { emoji: "🪈", title: "Der Flötenspieler gewinnt!", text: "Alle Überlebenden sind verzaubert." },
+  white: { emoji: "🐻‍❄️", title: "Der Weiße Werwolf gewinnt!", text: "Er ist als Einziger übrig geblieben." },
+  angel: { emoji: "😇", title: "Der Engel gewinnt!", text: "Er ist in der ersten Runde gestorben – genau wie geplant." },
   none: { emoji: "🪦", title: "Niemand gewinnt", text: "Alle sind tot." },
 };
 
-function finishNight(g) {
-  const { victim, protect, heal, poison } = g.nd;
-  const deaths = [];
-  if (victim != null && victim !== protect && !heal) deaths.push(victim);
-  if (poison != null && !deaths.includes(poison)) deaths.push(poison);
-  const potions = { heal: g.potions.heal && !heal, poison: g.potions.poison && poison == null };
-  let n = applyDeaths({ ...g, potions, lastProtect: protect ?? null }, deaths);
-  const names = n._dead.map((i) => g.players[i].name);
-  return { ...n, phase: "announce", log: [...g.log, `Nacht ${g.night}: ${names.length ? "† " + names.join(", ") : "niemand gestorben"}`],
-    announce: { title: `☀️ Morgen nach Nacht ${g.night}`, dead: n._dead, empty: "Das Dorf erwacht – heute Nacht ist niemand gestorben!", next: "day" } };
-}
-
 // ── Speicher ──────────────────────────────────────────────────────────────────
 function loadState() {
+  const base = { names: [], showRoles: true, captain: false, roles: null, auto: true, game: null };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { names: [], showRoles: true, game: null, ...JSON.parse(raw) };
+    if (raw) return { ...base, ...JSON.parse(raw) };
+    const old = localStorage.getItem("werwolf-v1");
+    if (old) return { ...base, names: JSON.parse(old).names || [] };
   } catch (e) {}
-  return { names: [], showRoles: true, game: null };
+  return base;
 }
 function saveState(s) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch (e) {}
@@ -203,10 +349,14 @@ function IconBtn({ children, onClick, label }) {
   );
 }
 
+function Label({ children }) {
+  return <div style={{ color: C.dim, fontSize: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.6, margin: "0 6px 6px" }}>{children}</div>;
+}
+
 function Section({ title, children, footer }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      {title && <div style={{ color: C.dim, fontSize: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.6, margin: "0 6px 6px" }}>{title}</div>}
+      {title && <Label>{title}</Label>}
       <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.line}`, overflow: "hidden" }}>{children}</div>
       {footer && <div style={{ color: C.dim, fontSize: 13, margin: "8px 6px 0", lineHeight: 1.4 }}>{footer}</div>}
     </div>
@@ -224,7 +374,7 @@ function Row({ children, onClick, last }) {
 function BigButton({ children, onClick, disabled, color = C.accent, style }) {
   return (
     <button onClick={disabled ? undefined : onClick} disabled={disabled}
-      style={{ flex: 1, height: 50, borderRadius: 14, border: "none", background: disabled ? "var(--dis-bg)" : color, color: disabled ? "var(--dis-fg)" : "#fff", fontSize: 17, fontWeight: 600, cursor: disabled ? "default" : "pointer", ...style }}>
+      style={{ flex: 1, minWidth: 0, height: 50, borderRadius: 14, border: "none", background: disabled ? "var(--dis-bg)" : color, color: disabled ? "var(--dis-fg)" : color === C.card2 ? C.text : "#fff", fontSize: 17, fontWeight: 600, cursor: disabled ? "default" : "pointer", padding: "0 6px", ...style }}>
       {children}
     </button>
   );
@@ -275,17 +425,23 @@ function Stepper({ value, onChange, min = 0, max }) {
   );
 }
 
+const TEAM = {
+  wolf: { label: "Team Werwölfe", bg: "linear-gradient(160deg, #7f1d1d, #2a0d14)", border: "#f87171" },
+  village: { label: "Team Dorf", bg: "linear-gradient(160deg, #3b4bd8, #1a1b4b)", border: "#ffd166" },
+  solo: { label: "Spielt allein", bg: "linear-gradient(160deg, #7c3aed, #2a0f4b)", border: "#c4b5fd" },
+};
+
 // Rollenkarte zum Aufdecken
 function RoleCard({ role, small }) {
   const r = ROLES[role];
-  const wolf = r.team === "wolf";
+  const t = TEAM[r.team];
   return (
-    <div className="flip" style={{ margin: "0 auto", width: small ? "100%" : "min(78vw, 300px)", aspectRatio: small ? undefined : "5 / 7", borderRadius: 22, padding: small ? 16 : 22,
-      background: wolf ? "linear-gradient(160deg, #7f1d1d, #2a0d14)" : "linear-gradient(160deg, #3b4bd8, #1a1b4b)", color: "#fff",
-      border: `3px solid ${wolf ? "#f87171" : "#ffd166"}`, boxShadow: "0 12px 40px #0007", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 10 }}>
-      <div style={{ fontSize: small ? 48 : 92, lineHeight: 1 }}>{r.emoji}</div>
-      <div style={{ fontSize: small ? 24 : 30, fontWeight: 700 }}>{r.name}</div>
-      <div style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, opacity: 0.8 }}>{wolf ? "Team Werwölfe" : "Team Dorf"}</div>
+    <div className="flip" style={{ margin: "0 auto", width: small ? "100%" : "min(78vw, 300px)", minHeight: small ? undefined : "min(109vw, 420px)", borderRadius: 22, padding: small ? 16 : 22,
+      background: t.bg, color: "#fff", border: `3px solid ${t.border}`, boxShadow: "0 12px 40px #0007",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 10 }}>
+      <div style={{ fontSize: small ? 48 : 88, lineHeight: 1 }}>{r.emoji}</div>
+      <div style={{ fontSize: small ? 24 : 28, fontWeight: 700, lineHeight: 1.15 }}>{r.name}</div>
+      <div style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, opacity: 0.8 }}>{t.label}</div>
       <div style={{ fontSize: 15, lineHeight: 1.4, opacity: 0.92 }}>{r.desc}</div>
     </div>
   );
@@ -305,18 +461,20 @@ function PlayerPicker({ g, value, onChange, max = 1, filter = () => true, mark =
         if (!p.alive) return null;
         const ok = filter(i);
         const on = sel.includes(i);
+        const m = mark(i);
         return (
           <button key={i} onClick={() => ok && tap(i)} disabled={!ok}
             style={{ minHeight: 52, padding: "6px 10px", borderRadius: 14, border: on ? `2px solid ${C.accent}` : `1px solid ${C.line}`, background: on ? "var(--sel)" : C.card,
               color: ok ? C.text : "var(--dis-fg)", fontSize: 16, fontWeight: on ? 600 : 500, cursor: ok ? "pointer" : "default", textAlign: "left", display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{on ? "✓ " : ""}{p.name}</span>
-            {mark(i) && <span style={{ fontSize: 13, color: C.dim }}>{mark(i)}</span>}
+            {m && <span style={{ fontSize: 13, color: C.dim }}>{m}</span>}
           </button>
         );
       })}
     </div>
   );
 }
+const candidates = (g, filter) => alive(g).filter(filter);
 
 function Say({ children }) {
   return (
@@ -326,7 +484,9 @@ function Say({ children }) {
   );
 }
 
-const nameList = (g, ids) => ids.map((i) => g.players[i].name).join(" & ");
+function Note({ children, color }) {
+  return <div style={{ color: color || C.dim, lineHeight: 1.45, margin: "12px 4px 0", fontSize: 15 }}>{children}</div>;
+}
 
 // ── Startseite ────────────────────────────────────────────────────────────────
 function Home({ state, onContinue, onNew }) {
@@ -337,7 +497,7 @@ function Home({ state, onContinue, onNew }) {
       <div style={{ textAlign: "center", padding: "30px 10px 26px" }}>
         <div style={{ fontSize: 72 }}>🌕</div>
         <div style={{ fontSize: 24, fontWeight: 600, marginTop: 8 }}>Die Werwölfe von Düsterwald</div>
-        <div style={{ color: C.dim, marginTop: 8, lineHeight: 1.45 }}>Karten verteilen, durch die Nacht führen, Abstimmungen festhalten – das Handy ist euer Spielleiter-Helfer.</div>
+        <div style={{ color: C.dim, marginTop: 8, lineHeight: 1.45 }}>Karten verteilen, durch die Nacht führen, Abstimmungen festhalten – das Handy ist euer Spielleiter-Helfer. Mit über 25 Rollen aus Grundspiel, Neumond, Charaktere und mehr.</div>
       </div>
       {g && !g.winner && (
         <Section title="Laufendes Spiel">
@@ -351,11 +511,11 @@ function Home({ state, onContinue, onNew }) {
           </Row>
         </Section>
       )}
-      <Section title="So geht's" footer="Ein Spieler (oder jemand ohne Karte) ist Spielleiter und behält nachts das Handy.">
+      <Section title="So geht's" footer="Ein Spieler (oder jemand ohne Karte) ist Spielleiter und behält nachts das Handy. Gespielt werden kann mit beliebig vielen Spielern.">
         {[["🃏", "Handy reihum weitergeben – jeder schaut heimlich seine Karte an."],
           ["🌙", "Nachts ruft der Spielleiter die Rollen nacheinander auf und tippt ihre Wahl ein."],
           ["☀️", "Morgens verkündet die App die Toten, tagsüber stimmt das Dorf ab."],
-          ["🏆", "Das Dorf gewinnt, wenn alle Werwölfe tot sind – die Werwölfe, wenn sie gleich viele sind wie der Rest."]].map(([e, t], i, a) => (
+          ["🏆", "Die App prüft nach jedem Tod, ob Dorf, Werwölfe oder ein Einzelgänger gewonnen haben."]].map(([e, t], i, a) => (
           <Row key={i} last={i === a.length - 1}><span style={{ fontSize: 22 }}>{e}</span><span style={{ lineHeight: 1.4 }}>{t}</span></Row>
         ))}
       </Section>
@@ -372,11 +532,15 @@ function Setup({ state, onCancel, onStart }) {
   const [names, setNames] = useState(() => (state.names.length ? [...state.names, ""] : ["", "", "", "", ""]));
   const players = names.map((n) => n.trim()).filter(Boolean);
   const n = players.length;
-  const [roles, setRoles] = useState(() => suggestRoles(Math.max(MIN_PLAYERS, state.names.length)));
-  const [auto, setAuto] = useState(true);
+  const [picked, setPicked] = useState(() => state.roles || { wolf: 2 });
+  const [auto, setAuto] = useState(state.auto);
   const [showRoles, setShowRoles] = useState(state.showRoles);
-  const r = auto ? suggestRoles(Math.max(MIN_PLAYERS, n)) : roles;
-  const villagers = villagerCount(n, r);
+  const [captain, setCaptain] = useState(state.captain);
+  const [info, setInfo] = useState(null);
+  // automatisch: Werwölfe und Grundrollen passend zur Spielerzahl, alles andere bleibt wie gewählt
+  const r = auto ? { ...picked, ...autoRoles(Math.max(MIN_PLAYERS, n)), wolf: autoWolves(Math.max(MIN_PLAYERS, n), picked) } : picked;
+  const villagers = n - cardCount(r);
+  const wolves = wolfTeam(r);
   const dupes = new Set(players.map((p) => p.toLowerCase())).size !== n;
 
   const setName = (i, v) => {
@@ -385,21 +549,33 @@ function Setup({ state, onCancel, onStart }) {
     setNames(next);
   };
   const removeName = (i) => setNames(names.filter((_, j) => j !== i));
-  const setRole = (k, v) => { setRoles({ ...r, [k]: v }); setAuto(false); };
+  const setRole = (k, v) => {
+    setPicked({ ...r, [k]: v });
+    if (k === "wolf" || AUTO_ROLES.includes(k)) setAuto(false);
+  };
 
   let problem = null;
   if (n < MIN_PLAYERS) problem = `Mindestens ${MIN_PLAYERS} Spieler`;
   else if (dupes) problem = "Jeder Name nur einmal";
-  else if (villagers < 0) problem = "Mehr Rollen als Spieler";
-  else if (r.wolf >= n - r.wolf) problem = "Zu viele Werwölfe";
+  else if (villagers < 0) problem = `${-villagers} Rolle${villagers < -1 ? "n" : ""} zu viel für ${n} Spieler`;
+  else if (wolves < 1) problem = "Mindestens ein Werwolf";
+  else if (wolves >= n - wolves) problem = "Zu viele Werwölfe";
+
+  const roleRow = (k, last) => (
+    <Row key={k} last={last}>
+      <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>{ROLES[k].emoji}</span>
+      <span onClick={() => setInfo(k)} style={{ flex: 1, cursor: "pointer" }}>{ROLES[k].plural && ROLES[k].count ? ROLES[k].plural : ROLES[k].name} <span style={{ color: C.dim, fontSize: 14 }}>ⓘ</span></span>
+      <Toggle on={!!r[k]} onChange={(on) => setRole(k, on ? 1 : 0)} />
+    </Row>
+  );
 
   return (
     <div style={page} className="pop">
       <TopBar left={<IconBtn label="Zurück" onClick={onCancel}>‹ Zurück</IconBtn>} title="Neues Spiel" />
-      <Section title={`Spieler (${n})`} footer="Die Namen werden fürs nächste Spiel gemerkt.">
+      <Section title={`Spieler (${n})`} footer="In Sitzreihenfolge (im Uhrzeigersinn) eintragen – wichtig für Fuchs, Bärenführer und Ritter. Die Namen werden fürs nächste Spiel gemerkt.">
         {names.map((v, i) => (
           <Row key={i} last={i === names.length - 1}>
-            <span style={{ color: C.dim, width: 22, textAlign: "right" }}>{i + 1}.</span>
+            <span style={{ color: C.dim, width: 26, textAlign: "right" }}>{i + 1}.</span>
             <input value={v} onChange={(e) => setName(i, e.target.value)} placeholder={i === names.length - 1 ? "Spieler hinzufügen …" : "Name"}
               style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 17 }} />
             {v && i !== names.length - 1 && <button aria-label="Entfernen" onClick={() => removeName(i)} style={{ border: "none", background: "transparent", color: C.dim, fontSize: 18, cursor: "pointer" }}>✕</button>}
@@ -407,38 +583,51 @@ function Setup({ state, onCancel, onStart }) {
         ))}
       </Section>
 
-      <Section title="Rollen" footer={auto ? "Automatisch passend zur Spielerzahl – ändere eine Zahl, um selbst zu wählen." : null}>
+      <Section title="Werwölfe & Dorf" footer={auto ? "Werwölfe, Seherin, Hexe, Jäger und Amor werden automatisch passend zur Spielerzahl gewählt. Tippe auf eine Rolle für ihre Beschreibung." : "Tippe auf eine Rolle für ihre Beschreibung."}>
         <Row>
-          <span style={{ fontSize: 22 }}>✨</span><span style={{ flex: 1 }}>Automatisch verteilen</span>
-          <Toggle on={auto} onChange={(on) => { setAuto(on); if (!on) setRoles(r); }} />
+          <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>✨</span><span style={{ flex: 1 }}>Automatisch verteilen</span>
+          <Toggle on={auto} onChange={(on) => { setAuto(on); if (!on) setPicked(r); }} />
         </Row>
         <Row>
-          <span style={{ fontSize: 22 }}>{ROLES.wolf.emoji}</span><span style={{ flex: 1 }}>{ROLES.wolf.plural}</span>
-          <Stepper value={r.wolf} min={1} onChange={(v) => setRole("wolf", v)} />
+          <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>{ROLES.wolf.emoji}</span>
+          <span onClick={() => setInfo("wolf")} style={{ flex: 1, cursor: "pointer" }}>{ROLES.wolf.plural} <span style={{ color: C.dim, fontSize: 14 }}>ⓘ</span></span>
+          <Stepper value={r.wolf} min={0} onChange={(v) => setRole("wolf", v)} />
         </Row>
-        {SPECIAL.map((k) => (
-          <Row key={k}>
-            <span style={{ fontSize: 22 }}>{ROLES[k].emoji}</span><span style={{ flex: 1 }}>{ROLES[k].name}</span>
-            <Toggle on={!!r[k]} onChange={(on) => setRole(k, on ? 1 : 0)} />
-          </Row>
-        ))}
         <Row last>
-          <span style={{ fontSize: 22 }}>{ROLES.villager.emoji}</span><span style={{ flex: 1 }}>{ROLES.villager.plural}</span>
+          <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>{ROLES.villager.emoji}</span><span style={{ flex: 1 }}>{ROLES.villager.plural}</span>
           <span style={{ fontSize: 18, fontWeight: 600, color: villagers < 0 ? C.bad : C.text, paddingRight: 8 }}>{villagers}</span>
         </Row>
       </Section>
 
-      <Section>
+      {SETS.map((s) => (
+        <Section key={s.name} title={s.name} footer={s.note}>
+          {s.roles.map((k, i) => roleRow(k, i === s.roles.length - 1))}
+        </Section>
+      ))}
+
+      <Section title="Optionen">
+        <Row>
+          <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>🎖️</span>
+          <div style={{ flex: 1 }}><div>Hauptmann wählen</div><div style={{ color: C.dim, fontSize: 13 }}>Am ersten Tag gewählt, seine Stimme zählt doppelt</div></div>
+          <Toggle on={captain} onChange={setCaptain} />
+        </Row>
         <Row last>
-          <span style={{ fontSize: 22 }}>🪦</span>
+          <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>🪦</span>
           <div style={{ flex: 1 }}><div>Rollen der Toten aufdecken</div><div style={{ color: C.dim, fontSize: 13 }}>Beim Tod wird die Karte allen gezeigt</div></div>
           <Toggle on={showRoles} onChange={setShowRoles} />
         </Row>
       </Section>
 
-      <BottomBar hint={problem} hintColor={C.bad}>
-        <BigButton disabled={!!problem} onClick={() => onStart(players, r, showRoles)}>Karten mischen 🃏</BigButton>
+      <BottomBar hint={problem || `${n} Spieler · ${wolves} im Werwolf-Team · ${villagers} Dorfbewohner`} hintColor={problem ? C.bad : C.dim}>
+        <BigButton disabled={!!problem} onClick={() => onStart(players, r, { showRoles, captain, auto })}>Karten mischen 🃏</BigButton>
       </BottomBar>
+
+      {info && (
+        <Sheet title={ROLES[info].name} onClose={() => setInfo(null)}>
+          <RoleCard role={info} small />
+          <div style={{ display: "flex", marginTop: 14 }}><BigButton color={C.card2} onClick={() => setInfo(null)}>Schließen</BigButton></div>
+        </Sheet>
+      )}
     </div>
   );
 }
@@ -448,7 +637,6 @@ function Reveal({ g, update }) {
   const [shown, setShown] = useState(false);
   const p = g.players[g.revealIdx];
   const last = g.revealIdx === g.players.length - 1;
-  const pack = shown && p.role === "wolf" ? g.players.filter((q, i) => q.role === "wolf" && i !== g.revealIdx).map((q) => q.name) : [];
 
   if (!p) {
     return (
@@ -459,6 +647,15 @@ function Reveal({ g, update }) {
         <BottomBar><BigButton onClick={() => update(startNight(g))}>Nacht beginnen 🌙</BigButton></BottomBar>
       </div>
     );
+  }
+
+  const others = (pred) => g.players.filter((q, i) => i !== g.revealIdx && pred(q)).map((q) => q.name);
+  let extra = null;
+  if (WOLF_ROLES.includes(p.role)) {
+    const pack = others((q) => WOLF_ROLES.includes(q.role));
+    extra = pack.length ? `Dein Rudel: ${pack.join(", ")}` : "Du bist der einzige Werwolf.";
+  } else if (p.role === "sister" || p.role === "brother") {
+    extra = `Deine Geschwister: ${others((q) => q.role === p.role).join(", ")}`;
   }
 
   return (
@@ -476,9 +673,7 @@ function Reveal({ g, update }) {
         <>
           <div style={{ fontSize: 20, fontWeight: 600, margin: "6px 0 14px" }}>{p.name}, du bist …</div>
           <RoleCard role={p.role} />
-          {p.role === "wolf" && (
-            <div style={{ marginTop: 14, color: C.dim }}>{pack.length ? `Deine Rudel-Kollegen: ${pack.join(", ")}` : "Du bist der einzige Werwolf."}</div>
-          )}
+          {extra && <div style={{ marginTop: 14, color: C.dim }}>{extra}</div>}
           <BottomBar hint="Merk dir deine Rolle und verdecke sie wieder.">
             <BigButton onClick={() => { setShown(false); update({ ...g, revealIdx: g.revealIdx + 1 }); }}>{last ? "Verdecken – fertig" : "Verdecken & weitergeben"}</BigButton>
           </BottomBar>
@@ -489,123 +684,236 @@ function Reveal({ g, update }) {
 }
 
 // ── Nacht ─────────────────────────────────────────────────────────────────────
+const STEP = {
+  amor: { title: "Amor", say: "Amor erwacht und zeigt auf zwei Spieler, die sich unsterblich ineinander verlieben." },
+  wildchild: { title: "Wildes Kind", say: "Das Wilde Kind erwacht und zeigt auf sein Vorbild." },
+  wolfdog: { title: "Wolfshund", say: "Der Wolfshund erwacht und entscheidet: Will er Dorfbewohner oder Werwolf sein?" },
+  sister: { title: "Zwei Schwestern", say: "Die beiden Schwestern erwachen und erkennen sich." },
+  brother: { title: "Drei Brüder", say: "Die drei Brüder erwachen und erkennen sich." },
+  guard: { title: "Beschützer", say: "Der Beschützer erwacht und zeigt auf einen Spieler, den er heute Nacht beschützen will." },
+  seer: { title: "Seherin", say: "Die Seherin erwacht und zeigt auf einen Spieler, dessen Karte sie sehen möchte." },
+  fox: { title: "Fuchs", say: "Der Fuchs erwacht und zeigt auf einen Spieler. Ich verrate ihm, ob bei dieser Dreiergruppe ein Werwolf dabei ist." },
+  wolf: { title: "Die Werwölfe", say: "Die Werwölfe erwachen, erkennen sich und einigen sich leise auf ein Opfer." },
+  whitewolf: { title: "Weißer Werwolf", say: "Der Weiße Werwolf erwacht und darf, wenn er will, einen Werwolf töten." },
+  bigwolf: { title: "Großer böser Wolf", say: "Der Große böse Wolf erwacht und sucht sich ein zweites Opfer aus." },
+  witch: { title: "Hexe", say: "Die Hexe erwacht. Ich zeige ihr die Opfer der Werwölfe. Will sie ihren Heiltrank oder ihren Gifttrank benutzen?" },
+  piper: { title: "Flötenspieler", say: "Der Flötenspieler erwacht und verzaubert zwei Spieler." },
+  raven: { title: "Rabe", say: "Der Rabe erwacht und zeigt auf einen Spieler, den er verdächtigt." },
+};
+
 function Night({ g, update }) {
   const kind = g.steps[g.step];
   const nd = g.nd;
   const setNd = (patch) => update({ ...g, nd: { ...nd, ...patch } });
-  const holder = (r) => g.players.map((p, i) => i).filter((i) => g.players[i].role === r);
-  const dead = kind !== "wolf" && !aliveWith(g, kind);
+  const who = actor(g, kind);
   const r = ROLES[kind];
+  const s = STEP[kind];
+  const isP = (i, pred) => pred(g.players[i]);
 
-  let body = null, ready = true, script = "";
-  if (dead) {
-    script = `${r.name}, erwache … ${r.name}, schlafe wieder ein.`;
-    body = <div style={{ color: C.dim, lineHeight: 1.45 }}>{r.emoji} {r.name} ist bereits tot. Trotzdem kurz aufrufen und ein paar Sekunden warten, damit niemand etwas merkt.</div>;
+  let body = null, ready = true;
+  if (who == null) {
+    const why = kind === "wolf" ? "Es lebt kein Werwolf mehr" : g.powersLost && r.team === "village" ? `${s.title}: Die Dorfbewohner haben ihre Kräfte verloren` :
+      kind === "fox" && g.foxLost ? "Der Fuchs hat seine Kraft verloren" : kind === "bigwolf" && g.wolfDied ? "Seit ein Werwolf gestorben ist, frisst der Große böse Wolf nicht mehr extra" : `${s.title}: tot`;
+    body = <div style={{ color: C.dim, lineHeight: 1.45 }}>{why}. Trotzdem kurz aufrufen und ein paar Sekunden warten, damit niemand etwas merkt.</div>;
   } else if (kind === "amor") {
-    script = "Amor erwacht und zeigt auf zwei Spieler, die sich unsterblich ineinander verlieben.";
     ready = (nd.lovers || []).length === 2;
     body = (
       <>
         <PlayerPicker g={g} value={nd.lovers || []} max={2} onChange={(v) => setNd({ lovers: v })} />
-        {ready && <div style={{ marginTop: 14, color: C.dim, lineHeight: 1.45 }}>Amor schläft ein. Tippe gleich nacheinander {nameList(g, nd.lovers)} an die Schulter – sie öffnen kurz die Augen und erkennen sich.</div>}
+        {ready && <Note>Amor schläft ein. Tippe {nameList(g, nd.lovers)} an die Schulter – sie öffnen kurz die Augen und erkennen sich.</Note>}
       </>
     );
+  } else if (kind === "wildchild") {
+    ready = nd.model != null;
+    body = <PlayerPicker g={g} value={nd.model} onChange={(v) => setNd({ model: v })} filter={(i) => i !== who} />;
+  } else if (kind === "wolfdog") {
+    ready = nd.dog != null;
+    body = (
+      <div style={{ display: "flex", gap: 10 }}>
+        {["villager", "wolf"].map((x) => (
+          <BigButton key={x} color={nd.dog === x ? (x === "wolf" ? C.wolf : C.accent) : C.card2} onClick={() => setNd({ dog: x })}>{ROLES[x].emoji} {ROLES[x].name}</BigButton>
+        ))}
+      </div>
+    );
+  } else if (kind === "sister" || kind === "brother") {
+    body = <div style={{ fontSize: 17 }}>{r.emoji} {nameList(g, holders(g, kind).filter((i) => g.players[i].alive))}</div>;
   } else if (kind === "guard") {
-    script = "Der Beschützer erwacht und zeigt auf einen Spieler, den er heute Nacht beschützen will.";
     ready = nd.protect != null;
     body = <PlayerPicker g={g} value={nd.protect} onChange={(v) => setNd({ protect: v })} filter={(i) => i !== g.lastProtect} mark={(i) => (i === g.lastProtect ? "letzte Nacht" : null)} />;
-  } else if (kind === "wolf") {
-    script = "Die Werwölfe erwachen, erkennen sich und einigen sich leise auf ein Opfer.";
-    ready = nd.victim != null;
-    body = (
-      <>
-        <div style={{ color: C.dim, marginBottom: 10 }}>Rudel: {holder("wolf").filter((i) => g.players[i].alive).map((i) => g.players[i].name).join(", ")}</div>
-        <PlayerPicker g={g} value={nd.victim} onChange={(v) => setNd({ victim: v })} filter={(i) => g.players[i].role !== "wolf"} />
-      </>
-    );
   } else if (kind === "seer") {
-    script = "Die Seherin erwacht und zeigt auf einen Spieler, dessen Karte sie sehen möchte.";
     ready = nd.seen != null;
+    const seenAs = (p) => (p.role === "lycan" ? "wolf" : p.role);
     body = (
       <>
-        <PlayerPicker g={g} value={nd.seen} onChange={(v) => setNd({ seen: v })} filter={(i) => g.players[i].role !== "seer"} />
-        {ready && <div style={{ marginTop: 16 }}><div style={{ color: C.dim, textAlign: "center", marginBottom: 8 }}>Zeig der Seherin: {g.players[nd.seen].name} ist …</div><RoleCard role={g.players[nd.seen].role} small /></div>}
+        {g.players[who].role === "apprentice" && <Note color={C.gold}>Die Seherin ist tot – der Seher-Lehrling ({g.players[who].name}) übernimmt.</Note>}
+        <div style={{ height: 10 }} />
+        <PlayerPicker g={g} value={nd.seen} onChange={(v) => setNd({ seen: v })} filter={(i) => i !== who} />
+        {ready && <div style={{ marginTop: 16 }}><div style={{ color: C.dim, textAlign: "center", marginBottom: 8 }}>Zeig die Karte: {g.players[nd.seen].name} ist …</div><RoleCard role={seenAs(g.players[nd.seen])} small /></div>}
       </>
     );
+  } else if (kind === "fox") {
+    ready = nd.fox != null;
+    const hit = ready && [nd.fox, ...neighbours(g, nd.fox)].some((i) => isWolf(g.players[i]));
+    body = (
+      <>
+        <PlayerPicker g={g} value={nd.fox} onChange={(v) => setNd({ fox: v })} />
+        {ready && <Note color={hit ? C.good : C.bad}>{hit ? "👍 Ja – bei " + nameList(g, [nd.fox, ...neighbours(g, nd.fox)]) + " ist ein Werwolf. Der Fuchs behält seine Kraft." : "👎 Nein – kein Werwolf bei " + nameList(g, [nd.fox, ...neighbours(g, nd.fox)]) + ". Der Fuchs verliert seine Kraft."}</Note>}
+      </>
+    );
+  } else if (kind === "wolf") {
+    const prey = (i) => !isP(i, isWolf);
+    ready = nd.victim != null || candidates(g, prey).length === 0;
+    const ur = firstAlive(g, "urwolf");
+    body = (
+      <>
+        <div style={{ color: C.dim, marginBottom: 10 }}>Rudel: {nameList(g, alive(g).filter((i) => isP(i, isWolf)))}</div>
+        <PlayerPicker g={g} value={nd.victim} onChange={(v) => setNd({ victim: v, infect: false })} filter={prey} />
+        {ur != null && !g.infectUsed && nd.victim != null && (
+          <Section>
+            <Row last>
+              <span style={{ fontSize: 22 }}>🧛</span>
+              <div style={{ flex: 1 }}><div>Urwolf infiziert {g.players[nd.victim].name}</div><div style={{ color: C.dim, fontSize: 13 }}>Statt zu sterben wird das Opfer heimlich zum Werwolf (einmal pro Spiel)</div></div>
+              <Toggle on={!!nd.infect} onChange={(on) => setNd({ infect: on })} />
+            </Row>
+          </Section>
+        )}
+        {nd.infect && <Note>Sag dem Opfer später heimlich (Schulter antippen), dass es ab jetzt mit den Werwölfen aufwacht.</Note>}
+        {hasRole(g, "girl") && <Note>👧 Das Mädchen darf jetzt heimlich blinzeln.</Note>}
+      </>
+    );
+  } else if (kind === "whitewolf") {
+    body = <PlayerPicker g={g} value={nd.whiteVictim} onChange={(v) => setNd({ whiteVictim: v })} filter={(i) => i !== who && isP(i, isWolf)} />;
+  } else if (kind === "bigwolf") {
+    const prey = (i) => !isP(i, isWolf) && i !== nd.victim;
+    ready = nd.bigVictim != null || candidates(g, prey).length === 0;
+    body = <PlayerPicker g={g} value={nd.bigVictim} onChange={(v) => setNd({ bigVictim: v })} filter={prey} />;
   } else if (kind === "witch") {
-    script = "Die Hexe erwacht. Ich zeige ihr das Opfer der Werwölfe. Will sie ihren Heiltrank oder ihren Gifttrank benutzen?";
-    const v = nd.victim;
+    const victims = [nd.victim, nd.bigVictim].filter((v) => v != null && !(nd.infect && v === nd.victim));
     body = (
       <>
-        <Section title="Heiltrank">
-          <Row last>
-            <span style={{ fontSize: 22 }}>💚</span>
-            <div style={{ flex: 1 }}>
-              <div>{v != null ? `Opfer: ${g.players[v].name}` : "Kein Opfer"}</div>
-              <div style={{ color: C.dim, fontSize: 13 }}>{!g.potions.heal ? "Schon verbraucht" : v == null ? "Nichts zu heilen" : "Opfer retten?"}</div>
-            </div>
-            {g.potions.heal && v != null && <Toggle on={!!nd.heal} onChange={(on) => setNd({ heal: on })} />}
-          </Row>
-        </Section>
-        <div style={{ color: C.dim, fontSize: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.6, margin: "0 6px 6px" }}>Gifttrank</div>
+        <Label>Heiltrank</Label>
+        {!g.potions.heal ? <div style={{ color: C.dim, margin: "0 6px 18px" }}>Schon verbraucht</div>
+          : victims.length === 0 ? <div style={{ color: C.dim, margin: "0 6px 18px" }}>Kein Opfer heute Nacht</div>
+          : <div style={{ marginBottom: 18 }}><div style={{ color: C.dim, margin: "0 6px 8px" }}>Opfer: {nameList(g, victims)} – antippen zum Retten</div>
+              <PlayerPicker g={g} value={nd.heal} onChange={(v) => setNd({ heal: v })} filter={(i) => victims.includes(i)} /></div>}
+        <Label>Gifttrank</Label>
         {g.potions.poison
-          ? <PlayerPicker g={g} value={nd.poison} onChange={(x) => setNd({ poison: x })} filter={(i) => g.players[i].role !== "witch"} />
+          ? <PlayerPicker g={g} value={nd.poison} onChange={(x) => setNd({ poison: x })} filter={(i) => i !== who} />
           : <div style={{ color: C.dim, margin: "0 6px" }}>Schon verbraucht</div>}
-        <div style={{ color: C.dim, fontSize: 13, margin: "8px 6px 0" }}>Nichts antippen = Trank nicht benutzen.</div>
+        <Note>Nichts antippen = Trank nicht benutzen.</Note>
       </>
     );
+  } else if (kind === "piper") {
+    const free = (i) => i !== who && !g.players[i].charmed;
+    const need = Math.min(2, candidates(g, free).length);
+    ready = (nd.charm || []).length === need;
+    const all = alive(g).filter((i) => g.players[i].charmed || (nd.charm || []).includes(i));
+    body = (
+      <>
+        <PlayerPicker g={g} value={nd.charm || []} max={2} onChange={(v) => setNd({ charm: v })} filter={free} mark={(i) => (g.players[i].charmed ? "🎶" : null)} />
+        {ready && all.length > 0 && <Note>Der Flötenspieler schläft ein. Tippe {nameList(g, all)} an – alle Verzauberten öffnen kurz die Augen, erkennen sich und schlafen wieder ein.</Note>}
+      </>
+    );
+  } else if (kind === "raven") {
+    body = <PlayerPicker g={g} value={nd.raven} onChange={(v) => setNd({ raven: v })} />;
   }
 
   const next = () => {
-    if (g.step < g.steps.length - 1) return update({ ...g, step: g.step + 1 });
     let n = g;
-    if (nd.lovers) n = { ...n, players: n.players.map((p, i) => (nd.lovers.includes(i) ? { ...p, lover: true } : p)) };
+    // Entscheidungen der ersten Nacht sofort übernehmen, damit spätere Schritte sie kennen
+    if (kind === "amor" && nd.lovers) n = { ...n, players: n.players.map((p, i) => ({ ...p, lover: nd.lovers.includes(i) })) };
+    if (kind === "wildchild" && who != null) n = { ...n, players: n.players.map((p, i) => (i === who ? { ...p, model: nd.model } : p)) };
+    if (kind === "wolfdog" && who != null) n = { ...n, players: n.players.map((p, i) => (i === who ? { ...p, orig: "wolfdog", role: nd.dog } : p)) };
+    if (g.step < g.steps.length - 1) return update({ ...n, step: g.step + 1 });
     update(finishNight(n));
   };
   const back = () => update({ ...g, step: g.step - 1 });
+  const lastStep = g.step === g.steps.length - 1;
 
   return (
     <div style={page} className="pop" key={g.step}>
       <div style={{ textAlign: "center", color: C.dim, marginTop: 6 }}>🌙 Nacht {g.night} · Schritt {g.step + 1} von {g.steps.length}</div>
       <div style={{ textAlign: "center", margin: "10px 0 16px" }}>
         <div style={{ fontSize: 56 }}>{r.emoji}</div>
-        <div style={{ fontSize: 26, fontWeight: 700 }}>{kind === "wolf" ? "Die Werwölfe" : r.name}</div>
+        <div style={{ fontSize: 26, fontWeight: 700 }}>{s.title}</div>
       </div>
       {g.step === 0 && <Say>Es wird Nacht im Dorf. Alle schließen die Augen.</Say>}
-      <Say>{script}</Say>
+      <Say>{s.say}</Say>
       {body}
       <BottomBar hint={!ready ? "Bitte erst auswählen" : null}>
-        {g.step > 0 && <BigButton color={C.card2} style={{ flex: "0 0 90px", color: C.text }} onClick={back}>‹</BigButton>}
-        <BigButton disabled={!ready} onClick={next}>{g.step < g.steps.length - 1 ? kind === "wolf" ? "Werwölfe schlafen ein ›" : `${r.name} schläft ein ›` : "Morgen werden lassen ☀️"}</BigButton>
+        {g.step > 0 && <BigButton color={C.card2} style={{ flex: "0 0 90px" }} onClick={back}>‹</BigButton>}
+        <BigButton disabled={!ready} onClick={next}>{lastStep ? "Morgen werden lassen ☀️" : "Einschlafen lassen ›"}</BigButton>
       </BottomBar>
     </div>
   );
 }
 
-// ── Todesmeldungen & Jäger ────────────────────────────────────────────────────
+// ── Todesmeldungen, Jäger & Hauptmann ─────────────────────────────────────────
+function roleText(p) {
+  let t = `${ROLES[p.role].emoji} ${ROLES[p.role].name}`;
+  if (p.orig) t += ` (früher ${ROLES[p.orig].name})`;
+  if (p.infected) t += " – infiziert";
+  return t;
+}
+
 function Announce({ g, update }) {
   const [target, setTarget] = useState(null);
   const a = g.announce;
   const hunter = g.pendingHunters[0];
+  const w = winner(g);
+  const judge = firstAlive(g, "judge");
+  const canJudge = a.fromVote && !w && judge != null && !g.judgeUsed && !g.powersLost;
 
   const proceed = () => {
-    const w = winner(g);
     if (w) return update({ ...g, phase: "end", winner: w, announce: null });
     if (a.next === "day") return update({ ...g, phase: "day", announce: null });
-    return update(startNight(g));
+    return update(startNight({ ...g, raven: null }));
   };
   const shoot = (t) => {
     const n = applyDeaths({ ...g, pendingHunters: g.pendingHunters.slice(1) }, t == null ? [] : [t]);
     setTarget(null);
     update({ ...n, announce: { ...a, dead: [...a.dead, ...n._dead] },
-      log: t == null ? n.log : [...n.log, `🏹 ${g.players[hunter].name} erschießt ${n._dead.map((i) => g.players[i].name).join(", ")}`] });
+      log: t == null ? n.log : [...n.log, `🏹 ${g.players[hunter].name} erschießt ${nameList(g, n._dead)}`] });
   };
+  const successor = (t) => {
+    setTarget(null);
+    update({ ...g, captain: t, pendingCaptain: false, log: t == null ? g.log : [...g.log, `🎖️ ${g.players[t].name} wird Hauptmann`] });
+  };
+
+  let action;
+  if (hunter != null) {
+    action = (
+      <>
+        <Say>{g.players[hunter].name} war der Jäger und reißt mit letzter Kraft das Gewehr hoch. Auf wen schießt er?</Say>
+        <PlayerPicker g={g} value={target} onChange={setTarget} />
+        <BottomBar>
+          <BigButton color={C.card2} onClick={() => shoot(null)}>Kein Schuss</BigButton>
+          <BigButton disabled={target == null} onClick={() => shoot(target)}>🏹 Schießen</BigButton>
+        </BottomBar>
+      </>
+    );
+  } else if (g.pendingCaptain && !w && alive(g).length) {
+    action = (
+      <>
+        <Say>Der Hauptmann {g.players[g.captain].name} ist tot. Mit letztem Atem ernennt er einen Nachfolger.</Say>
+        <PlayerPicker g={g} value={target} onChange={setTarget} />
+        <BottomBar><BigButton disabled={target == null} onClick={() => successor(target)}>🎖️ Ernennen</BigButton></BottomBar>
+      </>
+    );
+  } else {
+    action = (
+      <BottomBar>
+        {canJudge && <BigButton color={C.card2} onClick={() => update({ ...g, phase: "day", judgeUsed: true, announce: null, secondVote: true })}>⚖️ 2. Abstimmung</BigButton>}
+        <BigButton onClick={proceed}>{w ? "Spielende 🏆" : a.next === "day" ? "Zur Abstimmung ☀️" : "Es wird Nacht 🌙"}</BigButton>
+      </BottomBar>
+    );
+  }
 
   return (
     <div style={page} className="pop">
       <TopBar title={a.title} />
       {a.dead.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px 10px", fontSize: 18, lineHeight: 1.45 }}><div style={{ fontSize: 60 }}>🌅</div>{a.empty}</div>
+        <div style={{ textAlign: "center", padding: "30px 10px", fontSize: 18, lineHeight: 1.45 }}><div style={{ fontSize: 60 }}>🌅</div>{a.empty}</div>
       ) : (
         <Section title="Gestorben">
           {a.dead.map((i, k) => {
@@ -614,30 +922,20 @@ function Announce({ g, update }) {
               <Row key={i} last={k === a.dead.length - 1}>
                 <span style={{ fontSize: 24 }}>🪦</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 18, fontWeight: 600 }}>{p.name}{p.lover ? " 💘" : ""}</div>
-                  {g.showRoles && <div style={{ color: p.role === "wolf" ? C.bad : C.dim, fontSize: 14 }}>war {ROLES[p.role].emoji} {ROLES[p.role].name}</div>}
+                  <div style={{ fontSize: 18, fontWeight: 600 }}>{p.name}{p.lover ? " 💘" : ""}{i === g.captain ? " 🎖️" : ""}</div>
+                  {g.showRoles && <div style={{ color: isWolf(p) ? C.bad : C.dim, fontSize: 14 }}>war {roleText(p)}</div>}
                 </div>
               </Row>
             );
           })}
         </Section>
       )}
-      {a.dead.some((i) => g.players[i].lover) && <div style={{ color: C.dim, margin: "-8px 6px 18px", fontSize: 14 }}>💔 Wer verliebt war, ist dem Partner aus Kummer gefolgt.</div>}
-
-      {hunter != null ? (
-        <>
-          <Say>{g.players[hunter].name} war der Jäger und reißt mit letzter Kraft das Gewehr hoch. Auf wen schießt er?</Say>
-          <PlayerPicker g={g} value={target} onChange={setTarget} />
-          <BottomBar>
-            <BigButton color={C.card2} style={{ color: C.text }} onClick={() => shoot(null)}>Kein Schuss</BigButton>
-            <BigButton disabled={target == null} onClick={() => shoot(target)}>🏹 Schießen</BigButton>
-          </BottomBar>
-        </>
-      ) : (
-        <BottomBar>
-          <BigButton onClick={proceed}>{winner(g) ? "Spielende 🏆" : a.next === "day" ? "Zur Abstimmung ☀️" : "Es wird Nacht 🌙"}</BigButton>
-        </BottomBar>
-      )}
+      {a.dead.some((i) => g.players[i].lover) && <Note>💔 Wer verliebt war, ist dem Partner aus Kummer gefolgt.</Note>}
+      {(a.notes || []).map((t, i) => <Note key={i} color={C.text}>{t}</Note>)}
+      {g.powersLost && a.dead.some((i) => g.players[i].role === "elder") && <Note color={C.bad}>👴 Der Dorfälteste wurde nicht von Werwölfen getötet – alle Dorfbewohner verlieren ihre Sonderfähigkeiten!</Note>}
+      {canJudge && <Note>⚖️ Der Stotternde Richter kann jetzt (mit seinem geheimen Zeichen) eine zweite Abstimmung verlangen.</Note>}
+      <div style={{ height: 18 }} />
+      {action}
     </div>
   );
 }
@@ -646,29 +944,63 @@ function Announce({ g, update }) {
 function Day({ g, update }) {
   const [pick, setPick] = useState(null);
   const [confirm, setConfirm] = useState(false);
-  const vote = (id) => {
-    const n = applyDeaths(g, id == null ? [] : [id]);
-    update({ ...n, phase: "announce", log: [...g.log, `Tag ${g.night}: ${id == null ? "niemand verurteilt" : "† " + n._dead.map((i) => g.players[i].name).join(", ")}`],
-      announce: { title: `⚖️ Urteil an Tag ${g.night}`, dead: n._dead, empty: "Das Dorf konnte sich nicht einigen – niemand wird verurteilt.", next: "night" } });
+  const goat = firstAlive(g, "scapegoat");
+  const needCaptain = g.captainOn && g.captain == null;
+  const mark = (i) => [i === g.captain && "🎖️", i === g.raven && "🐦‍⬛ +2", g.players[i].revealed && g.players[i].role === "idiot" && "🤪"].filter(Boolean).join(" ") || null;
+
+  const vote = (id, tie) => {
+    const target = tie ? goat ?? null : id;
+    const p = target != null ? g.players[target] : null;
+    const label = g.secondVote ? `2. Urteil an Tag ${g.night}` : `Urteil an Tag ${g.night}`;
+    const base = { ...g, secondVote: false, raven: null, phase: "announce" };
+    if (p && !p.revealed && ((p.role === "idiot" && !g.powersLost) || p.role === "prince")) {
+      const note = p.role === "idiot" ? `🤪 ${p.name} ist der Dorfdepp – bleibt am Leben, darf aber ab jetzt nicht mehr abstimmen.` : `🤴 ${p.name} ist der Prinz und wird begnadigt.`;
+      return update({ ...base, players: g.players.map((q, i) => (i === target ? { ...q, revealed: true } : q)), log: [...g.log, `Tag ${g.night}: ${p.name} aufgedeckt`],
+        announce: { title: `⚖️ ${label}`, dead: [], notes: [note], empty: "Niemand stirbt.", next: "night", fromVote: true } });
+    }
+    const n = applyDeaths(base, target == null ? [] : [target]);
+    const notes = tie && goat != null ? [`🐐 Gleichstand – der Sündenbock ${g.players[goat].name} muss sterben.`] : [];
+    update({ ...n, log: [...g.log, `Tag ${g.night}: ${target == null ? "niemand verurteilt" : "† " + nameList(g, n._dead)}`],
+      announce: { title: `⚖️ ${label}`, dead: n._dead, notes, empty: "Das Dorf konnte sich nicht einigen – niemand wird verurteilt.", next: "night", fromVote: true } });
   };
+
+  if (needCaptain) {
+    return (
+      <div style={page} className="pop">
+        <div style={{ textAlign: "center", margin: "6px 0 16px" }}>
+          <div style={{ fontSize: 56 }}>🎖️</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>Hauptmann-Wahl</div>
+        </div>
+        <Say>Bevor ihr abstimmt, wählt das Dorf einen Hauptmann. Seine Stimme zählt doppelt.</Say>
+        <PlayerPicker g={g} value={pick} onChange={setPick} />
+        <BottomBar><BigButton disabled={pick == null} onClick={() => { update({ ...g, captain: pick, log: [...g.log, `🎖️ ${g.players[pick].name} wird Hauptmann`] }); setPick(null); }}>Zum Hauptmann wählen</BigButton></BottomBar>
+      </div>
+    );
+  }
+
+  const idiots = alive(g).filter((i) => g.players[i].revealed && g.players[i].role === "idiot");
   return (
     <div style={page} className="pop">
       <div style={{ textAlign: "center", margin: "6px 0 16px" }}>
         <div style={{ fontSize: 56 }}>☀️</div>
-        <div style={{ fontSize: 26, fontWeight: 700 }}>Tag {g.night}</div>
-        <div style={{ color: C.dim }}>{alive(g).length} Dorfbewohner leben noch</div>
+        <div style={{ fontSize: 26, fontWeight: 700 }}>Tag {g.night}{g.secondVote ? " · 2. Abstimmung" : ""}</div>
+        <div style={{ color: C.dim }}>{alive(g).length} Spieler leben noch</div>
       </div>
       <Say>Diskutiert, wer ein Werwolf sein könnte – und stimmt dann ab. Wen schickt das Dorf an den Galgen?</Say>
-      <PlayerPicker g={g} value={pick} onChange={setPick} />
+      <PlayerPicker g={g} value={pick} onChange={setPick} mark={mark} />
+      {g.captain != null && g.players[g.captain].alive && <Note>🎖️ Die Stimme von {g.players[g.captain].name} zählt doppelt.</Note>}
+      {g.raven != null && g.players[g.raven].alive && <Note>🐦‍⬛ {g.players[g.raven].name} hat 2 Stimmen mehr gegen sich.</Note>}
+      {idiots.length > 0 && <Note>🤪 {nameList(g, idiots)} darf nicht abstimmen.</Note>}
       <BottomBar>
-        <BigButton color={C.card2} style={{ color: C.text }} onClick={() => vote(null)}>Niemand</BigButton>
-        <BigButton disabled={pick == null} onClick={() => setConfirm(true)}>Verurteilen ⚖️</BigButton>
+        <BigButton color={C.card2} onClick={() => vote(null)}>Niemand</BigButton>
+        {goat != null && <BigButton color={C.card2} onClick={() => vote(null, true)}>Gleichstand</BigButton>}
+        <BigButton disabled={pick == null} onClick={() => setConfirm(true)}>Verurteilen</BigButton>
       </BottomBar>
       {confirm && (
         <Sheet title={`${g.players[pick].name} verurteilen?`} onClose={() => setConfirm(false)}>
           <div style={{ display: "flex", gap: 10 }}>
-            <BigButton color={C.card2} style={{ color: C.text }} onClick={() => setConfirm(false)}>Abbrechen</BigButton>
-            <BigButton color={C.wolf} onClick={() => vote(pick)}>Ja, verurteilen</BigButton>
+            <BigButton color={C.card2} onClick={() => setConfirm(false)}>Abbrechen</BigButton>
+            <BigButton color={C.wolf} onClick={() => { setConfirm(false); vote(pick); }}>Ja, verurteilen</BigButton>
           </div>
         </Sheet>
       )}
@@ -688,7 +1020,7 @@ function End({ g, onNew, onHome }) {
       </div>
       <Overview g={g} />
       <BottomBar>
-        <BigButton color={C.card2} style={{ color: C.text }} onClick={onHome}>Fertig</BigButton>
+        <BigButton color={C.card2} onClick={onHome}>Fertig</BigButton>
         <BigButton onClick={onNew}>Nochmal spielen</BigButton>
       </BottomBar>
     </div>
@@ -697,6 +1029,15 @@ function End({ g, onNew, onHome }) {
 
 // Alle Rollen + Verlauf (nur für den Spielleiter)
 function Overview({ g }) {
+  const status = [
+    hasRole(g, "witch") && `🧪 Heiltrank ${g.potions.heal ? "✓" : "✗"} · Gifttrank ${g.potions.poison ? "✓" : "✗"}`,
+    hasRole(g, "elder") && `👴 Dorfältester: ${g.elderHit ? "erstes Leben verbraucht" : "hat noch ein Extraleben"}`,
+    g.powersLost && "⚠️ Dorfbewohner haben ihre Kräfte verloren",
+    hasRole(g, "fox") && g.foxLost && "🦊 Der Fuchs hat seine Kraft verloren",
+    hasRole(g, "urwolf") && `🧛 Infektion ${g.infectUsed ? "verbraucht" : "noch verfügbar"}`,
+    hasRole(g, "judge") && `⚖️ Zweite Abstimmung ${g.judgeUsed ? "verbraucht" : "noch verfügbar"}`,
+    g.delayed.length > 0 && `⏳ Stirbt in der nächsten Nacht: ${nameList(g, g.delayed)}`,
+  ].filter(Boolean);
   return (
     <>
       <Section title="Rollen">
@@ -704,16 +1045,16 @@ function Overview({ g }) {
           <Row key={i} last={i === g.players.length - 1}>
             <span style={{ fontSize: 22, opacity: p.alive ? 1 : 0.4 }}>{ROLES[p.role].emoji}</span>
             <div style={{ flex: 1, opacity: p.alive ? 1 : 0.5 }}>
-              <div style={{ fontWeight: 600, textDecoration: p.alive ? "none" : "line-through" }}>{p.name}{p.lover ? " 💘" : ""}</div>
-              <div style={{ color: p.role === "wolf" ? C.bad : C.dim, fontSize: 14 }}>{ROLES[p.role].name}</div>
+              <div style={{ fontWeight: 600, textDecoration: p.alive ? "none" : "line-through" }}>
+                {p.name}{p.lover ? " 💘" : ""}{p.charmed ? " 🎶" : ""}{i === g.captain ? " 🎖️" : ""}{p.revealed ? " 👁️" : ""}
+              </div>
+              <div style={{ color: isWolf(p) ? C.bad : C.dim, fontSize: 14 }}>{roleText(p)}{p.role === "wildchild" && p.model != null ? ` – Vorbild: ${g.players[p.model].name}` : ""}</div>
             </div>
             <span style={{ color: p.alive ? C.good : C.dim, fontSize: 14 }}>{p.alive ? "lebt" : "tot"}</span>
           </Row>
         ))}
       </Section>
-      {hasRole(g, "witch") && (
-        <div style={{ color: C.dim, margin: "-8px 6px 18px", fontSize: 14 }}>🧪 Hexe: Heiltrank {g.potions.heal ? "✓" : "✗"} · Gifttrank {g.potions.poison ? "✓" : "✗"}</div>
-      )}
+      {status.map((t, i) => <div key={i} style={{ color: C.dim, margin: "-8px 6px 14px", fontSize: 14 }}>{t}</div>)}
       {g.log.length > 0 && (
         <Section title="Verlauf">
           {g.log.map((l, i) => <Row key={i} last={i === g.log.length - 1}><span style={{ fontSize: 15 }}>{l}</span></Row>)}
@@ -736,25 +1077,20 @@ function Game({ g, update, onHome, onNew }) {
 
   return (
     <>
-      {/* Spielleiter-Knöpfe – beim Kartenansehen ausgeblendet, damit niemand spickt */}
-      {g.phase !== "reveal" && (
-        <div style={{ position: "fixed", top: "calc(env(safe-area-inset-top) + 12px)", left: 0, right: 0, zIndex: 4, pointerEvents: "none" }}>
-          <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 16px", display: "flex", justifyContent: "space-between" }}>
-            <span style={{ pointerEvents: "auto" }}><IconBtn label="Werwolf-Start" onClick={onHome}>🏠</IconBtn></span>
-            <span style={{ pointerEvents: "auto" }}><IconBtn label="Spielleiter-Übersicht" onClick={() => setSheet("peek")}>📜</IconBtn></span>
-          </div>
+      {/* Spielleiter-Übersicht – beim Kartenansehen ausgeblendet, damit niemand spickt */}
+      <div style={{ position: "fixed", top: "calc(env(safe-area-inset-top) + 12px)", left: 0, right: 0, zIndex: 4, pointerEvents: "none" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 16px", display: "flex", justifyContent: "space-between" }}>
+          <span style={{ pointerEvents: "auto" }}><IconBtn label="Werwolf-Start" onClick={onHome}>🏠</IconBtn></span>
+          {g.phase !== "reveal" && <span style={{ pointerEvents: "auto" }}><IconBtn label="Spielleiter-Übersicht" onClick={() => setSheet("peek")}>📜</IconBtn></span>}
         </div>
-      )}
-      {g.phase === "reveal" && (
-        <div style={{ position: "fixed", top: "calc(env(safe-area-inset-top) + 12px)", left: 16, zIndex: 4 }}><IconBtn label="Werwolf-Start" onClick={onHome}>🏠</IconBtn></div>
-      )}
+      </div>
       <div style={{ paddingTop: 44 }}>{screen}</div>
       {sheet === "peek" && (
         <Sheet title="📜 Spielleiter-Übersicht" onClose={() => setSheet(null)}>
           <div style={{ color: C.bad, fontSize: 14, textAlign: "center", marginBottom: 14 }}>Nur für den Spielleiter – niemand sonst darf hinschauen!</div>
           <Overview g={g} />
           <div style={{ display: "flex", gap: 10 }}>
-            <BigButton color={C.card2} style={{ color: C.text }} onClick={() => setSheet(null)}>Schließen</BigButton>
+            <BigButton color={C.card2} onClick={() => setSheet(null)}>Schließen</BigButton>
             <BigButton color={C.wolf} onClick={() => setSheet("quit")}>Spiel beenden</BigButton>
           </div>
         </Sheet>
@@ -763,7 +1099,7 @@ function Game({ g, update, onHome, onNew }) {
         <Sheet title="Spiel wirklich beenden?" onClose={() => setSheet(null)}>
           <div style={{ color: C.dim, textAlign: "center", marginBottom: 14 }}>Das laufende Spiel wird gelöscht.</div>
           <div style={{ display: "flex", gap: 10 }}>
-            <BigButton color={C.card2} style={{ color: C.text }} onClick={() => setSheet(null)}>Abbrechen</BigButton>
+            <BigButton color={C.card2} onClick={() => setSheet(null)}>Abbrechen</BigButton>
             <BigButton color={C.wolf} onClick={() => { setSheet(null); update(null); onHome(); }}>Beenden</BigButton>
           </div>
         </Sheet>
@@ -783,7 +1119,10 @@ function App() {
 
   if (view === "setup")
     return <Setup state={state} onCancel={() => setView("home")}
-      onStart={(names, roles, showRoles) => { setState((s) => ({ ...s, names, showRoles, game: newGame(names, roles, showRoles) })); setView("game"); }} />;
+      onStart={(names, roles, o) => {
+        setState((s) => ({ ...s, names, showRoles: o.showRoles, captain: o.captain, roles, auto: o.auto, game: newGame(names, roles, o) }));
+        setView("game");
+      }} />;
 
   if (view === "game" && state.game)
     return <Game g={state.game} update={update} onHome={() => setView("home")} onNew={() => setView("setup")} />;
