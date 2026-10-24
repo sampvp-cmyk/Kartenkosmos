@@ -1,6 +1,6 @@
-# Spieleabend (Wizard Block 2.0)
+# 🪐 Kartenkosmos
 
-Eine Web-App mit Startmenü für zwei Kartenspiel-Helfer:
+Eine Web-App mit Startmenü für Kartenspiel-Helfer – weitere Spiele kommen als neue „Planeten“ dazu:
 
 - **Wizard Block** (`wizard/`) – Punkteblock für Wizard mit allen Editionen, Einstellungen, Geber-Auswahl, Zwei-Decks-Modus
 - **Arschmallows** (`arschmallows/`) – Merk-Helfer, Kopie aus [Arschmellow-2.0](https://github.com/sampvp-cmyk/Arschmellow-2.0)

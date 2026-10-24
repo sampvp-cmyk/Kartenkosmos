@@ -1,7 +1,7 @@
 {
-  "name": "Spieleabend",
-  "short_name": "Spieleabend",
-  "description": "Wizard Block und Arschmallows in einer App",
+  "name": "Kartenkosmos",
+  "short_name": "Kartenkosmos",
+  "description": "Kartenkosmos – Helfer für eure Kartenspiele: Wizard Block, Arschmallows und mehr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
