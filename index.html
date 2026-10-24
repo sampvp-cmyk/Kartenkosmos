@@ -40,7 +40,17 @@
     .tile .name { font-size: 22px; font-weight: 600; }
     .tile .desc { color: var(--dim); font-size: 14px; margin-top: 2px; line-height: 1.35; }
     .tile .arrow { margin-left: auto; color: var(--dim); font-size: 26px; }
-    .theme { display: flex; gap: 4px; max-width: 320px; margin: 28px auto 0; padding: 4px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); }
+    .gear { position: absolute; top: calc(env(safe-area-inset-top) + 12px); right: 16px; width: 40px; height: 40px; border-radius: 20px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text); font-size: 18px; cursor: pointer; }
+    .overlay { position: fixed; inset: 0; z-index: 20; background: #0008; display: none; align-items: flex-start; justify-content: center; }
+    .overlay.open { display: flex; }
+    .panel { width: calc(100% - 32px); max-width: 488px; margin-top: calc(env(safe-area-inset-top) + 60px); padding: 18px 16px; border-radius: 20px;
+      background: var(--bg); border: 1px solid var(--line); box-shadow: 0 10px 40px var(--shadow); }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .panel-head b { font-size: 19px; font-weight: 600; }
+    .panel-head button { width: 34px; height: 34px; border-radius: 17px; border: none; background: var(--card); color: var(--dim); font-size: 16px; cursor: pointer; }
+    .label { color: var(--dim); font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; margin: 0 6px 8px; }
+    .theme { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); }
     .theme button { flex: 1; height: 38px; border: none; border-radius: 10px; background: transparent; color: var(--dim); font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; }
     .theme button[aria-pressed="true"] { background: #8b6cff; color: #fff; }
   </style>
@@ -49,6 +59,7 @@
 <body>
   <div class="stars"></div><div class="glow"></div>
   <main>
+    <button class="gear" aria-label="Einstellungen" onclick="openSettings(true)">⚙️</button>
     <h1>🪐 Kartenkosmos</h1>
     <div class="sub">Welcher Planet wird heute bespielt?</div>
     <a class="tile" href="wizard/">
@@ -66,17 +77,24 @@
       <div><div class="name">Kniffel Block</div><div class="desc">Punkteblock für Kniffel – mit Würfeln in der App</div></div>
       <span class="arrow">›</span>
     </a>
-    <div class="theme" role="group" aria-label="Darstellung">
-      <button data-mode="auto">📱 Auto</button>
-      <button data-mode="light">☀️ Hell</button>
-      <button data-mode="dark">🌙 Dunkel</button>
-    </div>
   </main>
+  <div class="overlay" id="settings" onclick="if (event.target === this) openSettings(false)">
+    <div class="panel" role="dialog" aria-label="Einstellungen">
+      <div class="panel-head"><b>⚙️ Einstellungen</b><button aria-label="Schließen" onclick="openSettings(false)">✕</button></div>
+      <div class="label">Darstellung</div>
+      <div class="theme" role="group" aria-label="Darstellung">
+        <button data-mode="auto">📱 Auto</button>
+        <button data-mode="light">☀️ Hell</button>
+        <button data-mode="dark">🌙 Dunkel</button>
+      </div>
+    </div>
+  </div>
   <script>
     var themeButtons = document.querySelectorAll(".theme button");
     function showTheme() { themeButtons.forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.mode === kkTheme.get()); }); }
     themeButtons.forEach(function (b) { b.onclick = function () { kkTheme.set(b.dataset.mode); showTheme(); }; });
     showTheme();
+    function openSettings(open) { document.getElementById("settings").classList.toggle("open", open); }
   </script>
 </body>
 </html>
