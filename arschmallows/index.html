@@ -370,7 +370,7 @@ function SettingsPanel({ forgetChance: savedChance, lang: savedLang, onSave, mod
   return (
     <>
       <Backdrop onClick={onClose} zIndex={100} />
-      <div style={{ position:"fixed", top:0, right:0, zIndex:101, background:"var(--panel)", border:"2px solid #ff6b35", borderRadius:"0 0 0 16px", padding:"20px 20px 28px", width:300, maxHeight:"100vh", overflowY:"auto", boxShadow:"-10px 10px 40px var(--shadow)" }}>
+      <div style={{ position:"fixed", top:0, left:0, zIndex:101, background:"var(--panel)", border:"2px solid #ff6b35", borderRadius:"0 0 16px 0", padding:"20px 20px 28px", width:300, maxHeight:"100vh", overflowY:"auto", boxShadow:"10px 10px 40px var(--shadow)" }}>
 
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -829,7 +829,7 @@ function App() {
       <button aria-label="Startmenü" onClick={()=>{ location.href="../"; }} style={{ position:"absolute", top:20, left:20, background:"transparent", border:"1px solid var(--border)", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20, zIndex:2 }}>🏠</button>
 
       {/* Gear */}
-      <button className="gear-btn" onClick={()=>setShowSettings(true)} style={{ position:"absolute", top:20, right:20, background:"transparent", border:"1px solid var(--border)", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20 }}>⚙️</button>
+      <button className="gear-btn" onClick={()=>setShowSettings(true)} style={{ position:"absolute", top:20, left:68, background:"transparent", border:"1px solid var(--border)", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20 }}>⚙️</button>
 
       {/* Header */}
       <div style={{ textAlign:"center", marginBottom:10 }}>
