@@ -1029,6 +1029,7 @@ function End({ g, onNew, onHome }) {
 
 // Alle Rollen + Verlauf (nur für den Spielleiter)
 function Overview({ g }) {
+  const [info, setInfo] = useState(null);
   const status = [
     hasRole(g, "witch") && `🧪 Heiltrank ${g.potions.heal ? "✓" : "✗"} · Gifttrank ${g.potions.poison ? "✓" : "✗"}`,
     hasRole(g, "elder") && `👴 Dorfältester: ${g.elderHit ? "erstes Leben verbraucht" : "hat noch ein Extraleben"}`,
@@ -1042,13 +1043,13 @@ function Overview({ g }) {
     <>
       <Section title="Rollen">
         {g.players.map((p, i) => (
-          <Row key={i} last={i === g.players.length - 1}>
+          <Row key={i} last={i === g.players.length - 1} onClick={() => setInfo(i)}>
             <span style={{ fontSize: 22, opacity: p.alive ? 1 : 0.4 }}>{ROLES[p.role].emoji}</span>
             <div style={{ flex: 1, opacity: p.alive ? 1 : 0.5 }}>
               <div style={{ fontWeight: 600, textDecoration: p.alive ? "none" : "line-through" }}>
                 {p.name}{p.lover ? " 💘" : ""}{p.charmed ? " 🎶" : ""}{i === g.captain ? " 🎖️" : ""}{p.revealed ? " 👁️" : ""}
               </div>
-              <div style={{ color: isWolf(p) ? C.bad : C.dim, fontSize: 14 }}>{roleText(p)}{p.role === "wildchild" && p.model != null ? ` – Vorbild: ${g.players[p.model].name}` : ""}</div>
+              <div style={{ color: isWolf(p) ? C.bad : C.dim, fontSize: 14 }}>{roleText(p)}{p.role === "wildchild" && p.model != null ? ` – Vorbild: ${g.players[p.model].name}` : ""} <span style={{ color: C.dim }}>ⓘ</span></div>
             </div>
             <span style={{ color: p.alive ? C.good : C.dim, fontSize: 14 }}>{p.alive ? "lebt" : "tot"}</span>
           </Row>
@@ -1060,7 +1061,35 @@ function Overview({ g }) {
           {g.log.map((l, i) => <Row key={i} last={i === g.log.length - 1}><span style={{ fontSize: 15 }}>{l}</span></Row>)}
         </Section>
       )}
+      {info != null && <PlayerInfo g={g} i={info} onClose={() => setInfo(null)} />}
     </>
+  );
+}
+
+// Rollenkarte eines Spielers für den Spielleiter (bei Rollenwechsel auch die ursprüngliche Karte)
+function PlayerInfo({ g, i, onClose }) {
+  const p = g.players[i];
+  const notes = [
+    !p.alive && "🪦 Ist tot",
+    p.lover && `💘 Verliebt in ${nameList(g, g.players.map((q, j) => j).filter((j) => j !== i && g.players[j].lover))}`,
+    p.charmed && "🎶 Vom Flötenspieler verzaubert",
+    p.infected && "🧛 Vom Urwolf infiziert – wacht mit den Werwölfen auf",
+    i === g.captain && "🎖️ Hauptmann – Stimme zählt doppelt",
+    p.revealed && "👁️ Karte wurde schon aufgedeckt",
+    p.role === "wildchild" && p.model != null && `🧒 Vorbild: ${g.players[p.model].name}`,
+  ].filter(Boolean);
+  return (
+    <Sheet title={p.name} onClose={onClose}>
+      <RoleCard role={p.role} small />
+      {p.orig && (
+        <>
+          <div style={{ color: C.dim, textAlign: "center", margin: "14px 0 8px" }}>Ursprünglich war {p.name}:</div>
+          <RoleCard role={p.orig} small />
+        </>
+      )}
+      {notes.map((t, k) => <Note key={k} color={C.text}>{t}</Note>)}
+      <div style={{ display: "flex", marginTop: 16 }}><BigButton color={C.card2} onClick={onClose}>Zurück</BigButton></div>
+    </Sheet>
   );
 }
 
