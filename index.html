@@ -17,8 +17,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #0f1024; }
-    body { color: #fff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; min-height: 100vh; }
+    :root { --bg: #0f1024; --card: #1b1c3a; --line: #ffffff1a; --text: #fff; --dim: #a5a8d6; --shadow: #0006; }
+    :root[data-theme="light"] { --bg: #f3f1fb; --card: #ffffff; --line: #1b1c3a1f; --text: #1b1c3a; --dim: #6a6d99; --shadow: #1b1c3a26; }
+    html, body { background: var(--bg); }
+    body { color: var(--text); font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; min-height: 100vh; }
+    :root[data-theme="light"] .stars { display: none; }
     .stars { position: fixed; inset: 0; pointer-events: none; background-image:
       radial-gradient(1px 1px at 10% 12%, #fff8, transparent), radial-gradient(1px 1px at 30% 6%, #fff6, transparent),
       radial-gradient(1.5px 1.5px at 55% 15%, #fff9, transparent), radial-gradient(1px 1px at 72% 8%, #fff6, transparent),
@@ -28,16 +31,20 @@
       background: radial-gradient(ellipse at 50% 0%, rgba(124, 92, 255, 0.28) 0%, rgba(124, 92, 255, 0.08) 45%, transparent 70%); }
     main { position: relative; max-width: 520px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 40px) 16px calc(env(safe-area-inset-bottom) + 32px); }
     h1 { text-align: center; font-size: 32px; font-weight: 700; }
-    .sub { text-align: center; color: #a5a8d6; margin: 6px 0 32px; }
-    .tile { display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 14px; border-radius: 22px; text-decoration: none; color: #fff;
-      background: #1b1c3a; border: 1px solid #ffffff1a; transition: transform .1s, border-color .2s; }
+    .sub { text-align: center; color: var(--dim); margin: 6px 0 32px; }
+    .tile { display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 14px; border-radius: 22px; text-decoration: none; color: var(--text);
+      background: var(--card); border: 1px solid var(--line); transition: transform .1s, border-color .2s; }
     .tile:active { transform: scale(0.98); }
     .tile:hover { border-color: #8b6cff88; }
-    .tile img { width: 76px; height: 76px; border-radius: 18px; flex-shrink: 0; box-shadow: 0 4px 14px #0006; }
+    .tile img { width: 76px; height: 76px; border-radius: 18px; flex-shrink: 0; box-shadow: 0 4px 14px var(--shadow); }
     .tile .name { font-size: 22px; font-weight: 600; }
-    .tile .desc { color: #a5a8d6; font-size: 14px; margin-top: 2px; line-height: 1.35; }
-    .tile .arrow { margin-left: auto; color: #a5a8d6; font-size: 26px; }
+    .tile .desc { color: var(--dim); font-size: 14px; margin-top: 2px; line-height: 1.35; }
+    .tile .arrow { margin-left: auto; color: var(--dim); font-size: 26px; }
+    .theme { display: flex; gap: 4px; max-width: 320px; margin: 28px auto 0; padding: 4px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); }
+    .theme button { flex: 1; height: 38px; border: none; border-radius: 10px; background: transparent; color: var(--dim); font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; }
+    .theme button[aria-pressed="true"] { background: #8b6cff; color: #fff; }
   </style>
+  <script src="theme.js"></script>
 </head>
 <body>
   <div class="stars"></div><div class="glow"></div>
@@ -59,6 +66,17 @@
       <div><div class="name">Kniffel Block</div><div class="desc">Punkteblock für Kniffel – mit Würfeln in der App</div></div>
       <span class="arrow">›</span>
     </a>
+    <div class="theme" role="group" aria-label="Darstellung">
+      <button data-mode="auto">📱 Auto</button>
+      <button data-mode="light">☀️ Hell</button>
+      <button data-mode="dark">🌙 Dunkel</button>
+    </div>
   </main>
+  <script>
+    var themeButtons = document.querySelectorAll(".theme button");
+    function showTheme() { themeButtons.forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.mode === kkTheme.get()); }); }
+    themeButtons.forEach(function (b) { b.onclick = function () { kkTheme.set(b.dataset.mode); showTheme(); }; });
+    showTheme();
+  </script>
 </body>
 </html>

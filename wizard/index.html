@@ -17,8 +17,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #0f1024; }
-    body { color: #fff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; min-height: 100vh; }
+    :root { --bg: #0f1024; --card: #1b1c3a; --card2: #24264d; --sheet: #16173a; --line: #ffffff1a; --text: #fff; --dim: #a5a8d6;
+      --gold: #ffcc4d; --good: #34d399; --bad: #f87171; --dis-bg: #3a3c66; --dis-fg: #8f92c4; --step-bg: #2c2e57; --step-fg: #5e6199;
+      --faint: #ffffff30; --row: #ffffff14; --err-text: #fecaca; }
+    :root[data-theme="light"] { --bg: #f3f1fb; --card: #ffffff; --card2: #ebe8fa; --sheet: #f8f7fd; --line: #1b1c3a1f; --text: #1b1c3a; --dim: #6a6d99;
+      --gold: #b07800; --good: #059669; --bad: #dc2626; --dis-bg: #dcd9ef; --dis-fg: #9a9cc0; --step-bg: #e6e4f3; --step-fg: #b4b6d4;
+      --faint: #1b1c3a40; --row: #1b1c3a14; --err-text: #b91c1c; }
+    :root[data-theme="light"] .stars { display: none; }
+    html, body { background: var(--bg); }
+    body { color: var(--text); font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; min-height: 100vh; }
     button, input, select { font-family: inherit; }
     input { -webkit-user-select: text; user-select: text; }
     .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; background-image:
@@ -33,10 +40,11 @@
     @keyframes pop { from { opacity: 0; } to { opacity: 1; } }
     .pop { animation: pop 0.2s ease; }
     .block-table { border-collapse: separate; border-spacing: 0; font-size: 14px; }
-    .block-table th, .block-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #ffffff14; white-space: nowrap; }
-    .block-table th { position: sticky; top: 0; background: #1b1c3a; font-weight: 600; }
-    .block-table td:first-child, .block-table th:first-child { position: sticky; left: 0; background: #1b1c3a; z-index: 1; }
+    .block-table th, .block-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--row); white-space: nowrap; }
+    .block-table th { position: sticky; top: 0; background: var(--card); font-weight: 600; }
+    .block-table td:first-child, .block-table th:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
   </style>
+  <script src="../theme.js"></script>
 </head>
 <body>
 <div class="stars"></div><div class="glow"></div>
@@ -78,8 +86,8 @@ const TRUMPS = [
 ];
 
 const C = {
-  card: "#1b1c3a", card2: "#24264d", line: "#ffffff1a", text: "#fff", dim: "#a5a8d6",
-  accent: "#8b6cff", gold: "#ffcc4d", good: "#34d399", bad: "#f87171",
+  card: "var(--card)", card2: "var(--card2)", line: "var(--line)", text: "var(--text)", dim: "var(--dim)",
+  accent: "#8b6cff", gold: "var(--gold)", good: "var(--good)", bad: "var(--bad)",
 };
 
 // ── Spiellogik ────────────────────────────────────────────────────────────────
@@ -188,7 +196,7 @@ function Row({ children, onClick, last }) {
 function BigButton({ children, onClick, disabled, color = C.accent, style }) {
   return (
     <button onClick={disabled ? undefined : onClick} disabled={disabled}
-      style={{ flex: 1, height: 50, borderRadius: 14, border: "none", background: disabled ? "#3a3c66" : color, color: disabled ? "#8f92c4" : "#fff", fontSize: 17, fontWeight: 600, cursor: disabled ? "default" : "pointer", ...style }}>
+      style={{ flex: 1, height: 50, borderRadius: 14, border: "none", background: disabled ? "var(--dis-bg)" : color, color: disabled ? "var(--dis-fg)" : "#fff", fontSize: 17, fontWeight: 600, cursor: disabled ? "default" : "pointer", ...style }}>
       {children}
     </button>
   );
@@ -196,7 +204,7 @@ function BigButton({ children, onClick, disabled, color = C.accent, style }) {
 
 function BottomBar({ children, hint, hintColor }) {
   return (
-    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 5, background: "linear-gradient(transparent, #0f1024 30%)", padding: "24px 16px calc(env(safe-area-inset-bottom) + 14px)" }}>
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 5, background: "linear-gradient(transparent, var(--bg) 30%)", padding: "24px 16px calc(env(safe-area-inset-bottom) + 14px)" }}>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
         {hint && <div style={{ textAlign: "center", fontSize: 14, marginBottom: 8, color: hintColor || C.dim, fontWeight: 500 }}>{hint}</div>}
         <div style={{ display: "flex", gap: 10 }}>{children}</div>
@@ -208,7 +216,7 @@ function BottomBar({ children, hint, hintColor }) {
 function Stepper({ value, onChange, min = 0, max }) {
   const btn = (txt, d, label, dis) => (
     <button aria-label={label} disabled={dis} onClick={() => onChange(value + d)}
-      style={{ width: 44, height: 38, border: "none", background: dis ? "#2c2e57" : C.card2, color: dis ? "#5e6199" : C.text, fontSize: 22, fontWeight: 600, cursor: dis ? "default" : "pointer" }}>{txt}</button>
+      style={{ width: 44, height: 38, border: "none", background: dis ? "var(--step-bg)" : C.card2, color: dis ? "var(--step-fg)" : C.text, fontSize: 22, fontWeight: 600, cursor: dis ? "default" : "pointer" }}>{txt}</button>
   );
   return (
     <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${C.line}` }}>
@@ -236,7 +244,7 @@ function Segmented({ options, value, onChange }) {
 function Sheet({ title, onClose, children }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 20, background: "#0008", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div className="pop" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "#16173a", borderRadius: "20px 20px 0 0", border: `1px solid ${C.line}`, padding: "18px 16px calc(env(safe-area-inset-bottom) + 18px)", maxHeight: "85vh", overflowY: "auto" }}>
+      <div className="pop" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "var(--sheet)", borderRadius: "20px 20px 0 0", border: `1px solid ${C.line}`, padding: "18px 16px calc(env(safe-area-inset-bottom) + 18px)", maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ fontSize: 18, fontWeight: 600, textAlign: "center", marginBottom: 14 }}>{title}</div>
         {children}
       </div>
@@ -379,7 +387,7 @@ function PlayerRows({ players, setPlayers, showDealer }) {
             <button aria-label="Entfernen" onClick={() => setPlayers(players.filter((_, j) => j !== i))} style={{ width: 26, height: 26, borderRadius: 13, border: "none", background: C.bad, color: "#fff", fontSize: 18, lineHeight: "26px", cursor: "pointer", flexShrink: 0 }}>−</button>
             <input style={textInput} autoComplete="off" placeholder={`Spieler ${i + 1}`} value={p} onChange={(e) => setPlayer(i, e.target.value)} />
             {showDealer && p.trim() && (i === players.map((x) => x.trim()).findLastIndex(Boolean)
-              ? <span style={{ fontSize: 12, fontWeight: 600, color: "#1b1c3a", background: C.gold, borderRadius: 10, padding: "3px 8px" }}>Geber</span>
+              ? <span style={{ fontSize: 12, fontWeight: 600, color: "#1b1c3a", background: "#ffcc4d", borderRadius: 10, padding: "3px 8px" }}>Geber</span>
               : <button aria-label={`${p} als Geber`} onClick={() => makeDealer(i)}
                   style={{ fontSize: 12, color: C.dim, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 10, padding: "2px 8px", cursor: "pointer" }}>Geber</button>)}
             <span aria-label="Verschieben" role="button" onPointerDown={startDrag(i)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
@@ -452,7 +460,7 @@ function NewGame({ defaults, onCancel, onCreate }) {
         <PlayerRows players={players} setPlayers={(p) => { setPlayers(p); setError(""); }} showDealer />
       </Section>
 
-      {error && <div style={{ background: "#f8717122", border: `1px solid ${C.bad}`, color: "#fecaca", borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "center" }}>{error}</div>}
+      {error && <div style={{ background: "#f8717122", border: `1px solid ${C.bad}`, color: "var(--err-text)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "center" }}>{error}</div>}
       <BigButton onClick={() => create()} style={{ width: "100%" }}>Spiel erstellen</BigButton>
 
       {askDecks && (
@@ -635,7 +643,7 @@ function ScoreBlock({ game, onOpenRound }) {
               <tr key={r} onClick={() => onOpenRound(r)} style={{ cursor: "pointer" }}>
                 <td style={{ color: C.dim }}>{r + 1}</td>
                 {game.players.map((_, p) => {
-                  if (!rd || !rd.bidsDone) return <React.Fragment key={p}><td style={{ color: "#ffffff30" }}>·</td><td style={{ color: "#ffffff30" }}>·</td></React.Fragment>;
+                  if (!rd || !rd.bidsDone) return <React.Fragment key={p}><td style={{ color: "var(--faint)" }}>·</td><td style={{ color: "var(--faint)" }}>·</td></React.Fragment>;
                   const showBid = !isSecret(game.rule) || rd.done;
                   if (!rd.done) return <React.Fragment key={p}><td style={{ color: C.dim, fontSize: 12 }}>{showBid ? rd.bids[p] : "?"}</td><td /></React.Fragment>;
                   const s = roundScore(rd, p);
@@ -756,7 +764,7 @@ function RoundView({ game, r, onSave, onDraft, onClose }) {
             <Section footer={rd.bomb ? `Die Bombe hat einen Stich vernichtet – es gibt nur ${need} Stich${need !== 1 ? "e" : ""}.` : "Mit der Bombe geht ein Stich an niemanden."}>
               <Row last onClick={() => update({ bomb: !rd.bomb })}>
                 <span style={{ flex: 1, fontSize: 17 }}>💣 Wurde die Bombe gespielt?</span>
-                <span role="switch" aria-checked={rd.bomb} style={{ width: 52, height: 30, borderRadius: 15, background: rd.bomb ? C.good : "#3a3c66", position: "relative", transition: "background .2s" }}>
+                <span role="switch" aria-checked={rd.bomb} style={{ width: 52, height: 30, borderRadius: 15, background: rd.bomb ? C.good : "var(--dis-bg)", position: "relative", transition: "background .2s" }}>
                   <span style={{ position: "absolute", top: 3, left: rd.bomb ? 25 : 3, width: 24, height: 24, borderRadius: 12, background: "#fff", transition: "left .2s" }} />
                 </span>
               </Row>

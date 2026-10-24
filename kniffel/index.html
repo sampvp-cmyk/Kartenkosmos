@@ -17,8 +17,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #14101f; }
-    body { color: #fff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; min-height: 100vh; }
+    :root { --bg: #14101f; --card: #221b33; --card2: #2e2545; --sheet: #1b1529; --line: #ffffff1a; --text: #fff; --dim: #b3a9cc;
+      --gold: #ffcc4d; --good: #34d399; --bad: #f87171; --dis-bg: #3a3150; --dis-fg: #8a80a6; --toggle-off: #4a4163;
+      --faint: #ffffff30; --tint: #ffffff08; --row: #ffffff14; --err-text: #fecaca; }
+    :root[data-theme="light"] { --bg: #f8f4f2; --card: #ffffff; --card2: #f1eaea; --sheet: #fdfbfa; --line: #2a18301f; --text: #241a2e; --dim: #7a6c86;
+      --gold: #b07800; --good: #059669; --bad: #dc2626; --dis-bg: #e6dfe0; --dis-fg: #a89aa8; --toggle-off: #d4cbd3;
+      --faint: #241a2e40; --tint: #241a2e08; --row: #241a2e14; --err-text: #b91c1c; }
+    html, body { background: var(--bg); }
+    body { color: var(--text); font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; min-height: 100vh; }
     button, input, select { font-family: inherit; }
     input { -webkit-user-select: text; user-select: text; }
     .glow { position: fixed; left: 50%; top: -30vh; width: 140vw; height: 70vh; transform: translateX(-50%); pointer-events: none; z-index: 0;
@@ -30,11 +36,12 @@
     @keyframes shake { 0% { transform: rotate(0); } 25% { transform: rotate(-14deg) scale(.92); } 50% { transform: rotate(10deg); } 75% { transform: rotate(-6deg) scale(1.04); } 100% { transform: rotate(0); } }
     .shake { animation: shake 0.45s ease; }
     .sheet-table { border-collapse: separate; border-spacing: 0; font-size: 15px; width: 100%; }
-    .sheet-table th, .sheet-table td { padding: 0 6px; height: 42px; text-align: center; border-bottom: 1px solid #ffffff14; white-space: nowrap; }
-    .sheet-table th { position: sticky; top: 0; background: #221b33; font-weight: 600; z-index: 2; }
-    .sheet-table td:first-child, .sheet-table th:first-child { position: sticky; left: 0; background: #221b33; z-index: 1; text-align: left; }
+    .sheet-table th, .sheet-table td { padding: 0 6px; height: 42px; text-align: center; border-bottom: 1px solid var(--row); white-space: nowrap; }
+    .sheet-table th { position: sticky; top: 0; background: var(--card); font-weight: 600; z-index: 2; }
+    .sheet-table td:first-child, .sheet-table th:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; text-align: left; }
     .sheet-table th:first-child { z-index: 3; }
   </style>
+  <script src="../theme.js"></script>
 </head>
 <body>
 <div class="glow"></div>
@@ -49,8 +56,8 @@ const { useState, useEffect } = React;
 const STORAGE_KEY = "kniffel-block-2-v1"; // eigener Speicher, getrennt vom ursprünglichen Kniffel Block
 
 const C = {
-  card: "#221b33", card2: "#2e2545", line: "#ffffff1a", text: "#fff", dim: "#b3a9cc",
-  accent: "#ef4444", gold: "#ffcc4d", good: "#34d399", bad: "#f87171",
+  card: "var(--card)", card2: "var(--card2)", line: "var(--line)", text: "var(--text)", dim: "var(--dim)",
+  accent: "#ef4444", gold: "var(--gold)", good: "var(--good)", bad: "var(--bad)",
 };
 
 // ── Kniffel-Regeln ────────────────────────────────────────────────────────────
@@ -176,7 +183,7 @@ function Row({ children, onClick, last }) {
 function BigButton({ children, onClick, disabled, color = C.accent, style }) {
   return (
     <button onClick={disabled ? undefined : onClick} disabled={disabled}
-      style={{ flex: 1, height: 50, borderRadius: 14, border: "none", background: disabled ? "#3a3150" : color, color: disabled ? "#8a80a6" : "#fff", fontSize: 17, fontWeight: 600, cursor: disabled ? "default" : "pointer", ...style }}>
+      style={{ flex: 1, height: 50, borderRadius: 14, border: "none", background: disabled ? "var(--dis-bg)" : color, color: disabled ? "var(--dis-fg)" : "#fff", fontSize: 17, fontWeight: 600, cursor: disabled ? "default" : "pointer", ...style }}>
       {children}
     </button>
   );
@@ -184,7 +191,7 @@ function BigButton({ children, onClick, disabled, color = C.accent, style }) {
 
 function BottomBar({ children, hint, hintColor }) {
   return (
-    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 5, background: "linear-gradient(transparent, #14101f 30%)", padding: "24px 16px calc(env(safe-area-inset-bottom) + 14px)" }}>
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 5, background: "linear-gradient(transparent, var(--bg) 30%)", padding: "24px 16px calc(env(safe-area-inset-bottom) + 14px)" }}>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
         {hint && <div style={{ textAlign: "center", fontSize: 14, marginBottom: 8, color: hintColor || C.dim, fontWeight: 500 }}>{hint}</div>}
         <div style={{ display: "flex", gap: 10 }}>{children}</div>
@@ -210,7 +217,7 @@ function Segmented({ options, value, onChange }) {
 function Sheet({ title, onClose, children }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 20, background: "#0008", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div className="pop" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "#1b1529", borderRadius: "20px 20px 0 0", border: `1px solid ${C.line}`, padding: "18px 16px calc(env(safe-area-inset-bottom) + 18px)", maxHeight: "88vh", overflowY: "auto" }}>
+      <div className="pop" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "var(--sheet)", borderRadius: "20px 20px 0 0", border: `1px solid ${C.line}`, padding: "18px 16px calc(env(safe-area-inset-bottom) + 18px)", maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ fontSize: 18, fontWeight: 600, textAlign: "center", marginBottom: 14 }}>{title}</div>
         {children}
       </div>
@@ -221,7 +228,7 @@ function Sheet({ title, onClose, children }) {
 function Toggle({ on, onChange }) {
   return (
     <button aria-pressed={on} onClick={() => onChange(!on)}
-      style={{ width: 52, height: 32, borderRadius: 16, border: "none", background: on ? C.good : "#4a4163", position: "relative", cursor: "pointer", flexShrink: 0, transition: "background .15s" }}>
+      style={{ width: 52, height: 32, borderRadius: 16, border: "none", background: on ? C.good : "var(--toggle-off)", position: "relative", cursor: "pointer", flexShrink: 0, transition: "background .15s" }}>
       <span style={{ position: "absolute", top: 3, left: on ? 23 : 3, width: 26, height: 26, borderRadius: 13, background: "#fff", transition: "left .15s" }} />
     </button>
   );
@@ -232,9 +239,9 @@ const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6,
 function Die({ value, held, size = 54, onClick, rolling }) {
   return (
     <button onClick={onClick} aria-label={value ? `Würfel ${value}${held ? ", gehalten" : ""}` : "Würfel"} className={rolling ? "shake" : ""}
-      style={{ width: size, height: size, borderRadius: size * 0.2, border: held ? `3px solid ${C.gold}` : "3px solid transparent", background: value ? "#fff" : "#ffffff22",
+      style={{ width: size, height: size, borderRadius: size * 0.2, border: held ? `3px solid ${C.gold}` : "3px solid transparent", background: value ? "#fff" : "var(--faint)",
         padding: size * 0.12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "repeat(3, 1fr)", cursor: onClick ? "pointer" : "default",
-        boxShadow: held ? `0 0 0 3px ${C.gold}44` : "0 3px 0 #00000055", transform: held ? "translateY(-6px)" : "none", transition: "transform .15s" }}>
+        boxShadow: held ? "0 0 0 3px #ffcc4d44" : "0 3px 0 #00000055", transform: held ? "translateY(-6px)" : "none", transition: "transform .15s" }}>
       {Array.from({ length: 9 }, (_, i) => (
         <span key={i} style={{ placeSelf: "center", width: size * 0.17, height: size * 0.17, borderRadius: "50%", background: value && PIPS[value].includes(i) ? "#1b1529" : "transparent" }} />
       ))}
@@ -366,7 +373,7 @@ function NewGame({ defaults, onCancel, onCreate }) {
         <PlayerRows players={players} setPlayers={(p) => { setPlayers(p); setError(""); }} />
       </Section>
 
-      {error && <div style={{ background: "#f8717122", border: `1px solid ${C.bad}`, color: "#fecaca", borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "center" }}>{error}</div>}
+      {error && <div style={{ background: "#f8717122", border: `1px solid ${C.bad}`, color: "var(--err-text)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "center" }}>{error}</div>}
       <BigButton onClick={create} style={{ width: "100%" }}>Spiel erstellen</BigButton>
     </div>
   );
@@ -498,12 +505,12 @@ function ScoreSheet({ game, onCell }) {
     const v = game.sheets[p][f.id];
     return (
       <td key={p} onClick={() => onCell(p, f.id)} style={{ cursor: "pointer", background: p === cur ? "#ef444414" : "transparent" }}>
-        {v == null ? <span style={{ color: "#ffffff30" }}>·</span> : v === 0 ? <span style={{ color: C.bad }}>✗</span> : <b style={{ fontWeight: 600 }}>{v}</b>}
+        {v == null ? <span style={{ color: "var(--faint)" }}>·</span> : v === 0 ? <span style={{ color: C.bad }}>✗</span> : <b style={{ fontWeight: 600 }}>{v}</b>}
       </td>
     );
   };
   const sumRow = (label, get, strong) => (
-    <tr style={{ background: "#ffffff08" }}>
+    <tr style={{ background: "var(--tint)" }}>
       <td style={{ color: strong ? C.gold : C.dim, fontWeight: strong ? 600 : 400 }}>{label}</td>
       {scores.map((s, p) => <td key={p} style={{ color: strong ? C.gold : C.dim, fontWeight: strong ? 700 : 500, background: p === cur ? "#ef444414" : "transparent" }}>{get(s, p)}</td>)}
     </tr>
@@ -525,7 +532,7 @@ function ScoreSheet({ game, onCell }) {
           {game.extraKniffel && (
             <tr><td>Zusatz-Kniffel</td>{game.players.map((_, p) => (
               <td key={p} onClick={() => onCell(p, "extra")} style={{ cursor: "pointer", background: p === cur ? "#ef444414" : "transparent" }}>
-                {game.sheets[p].extra ? <b>+{game.sheets[p].extra * 50}</b> : <span style={{ color: "#ffffff30" }}>·</span>}
+                {game.sheets[p].extra ? <b>+{game.sheets[p].extra * 50}</b> : <span style={{ color: "var(--faint)" }}>·</span>}
               </td>))}
             </tr>
           )}
@@ -628,7 +635,7 @@ function GameView({ game, onBack, onUpdate, onDelete, justFinished, onEndSeen, o
               const n = game.sheets[extraFor].extra || 0;
               const dis = i === 0 && n === 0;
               const btn = <button key={s} disabled={dis} onClick={() => onUpdate({ ...game, sheets: game.sheets.map((sh, j) => (j === extraFor ? { ...sh, extra: n + (i ? 1 : -1) } : sh)) })}
-                style={{ width: 54, height: 54, borderRadius: 27, border: "none", background: dis ? "#3a3150" : C.card2, color: C.text, fontSize: 26, cursor: dis ? "default" : "pointer" }}>{s}</button>;
+                style={{ width: 54, height: 54, borderRadius: 27, border: "none", background: dis ? "var(--dis-bg)" : C.card2, color: C.text, fontSize: 26, cursor: dis ? "default" : "pointer" }}>{s}</button>;
               return i === 0 ? [btn, <span key="n" style={{ fontSize: 28, fontWeight: 700, minWidth: 70, textAlign: "center" }}>+{n * 50}</span>] : btn;
             })}
           </div>

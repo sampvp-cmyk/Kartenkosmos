@@ -16,7 +16,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #140d1c; color: #fff; font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; }
+    :root { --bg: #140d1c; --page: linear-gradient(180deg,#0f0a24 0%,#1c1236 45%,#2a1424 100%); --panel: #1c1326; --box: #221830; --btn: #2a1e36; --border: #3d2c48;
+      --text: #fff; --title: #fff4e6; --tagline: #ffb27a; --dim: #9a86a8; --t2: #aaa; --t3: #666; --t4: #3a3a4a; --gold: #f1c40f;
+      --green-bg: #0a2e1a; --red-bg: #590d22; --red-border: #4a1010; --gold-bg: #1a1000; --shadow: rgba(0,0,0,0.7); }
+    :root[data-theme="light"] { --bg: #fdf3e9; --page: linear-gradient(180deg,#fff8f0 0%,#fdeee0 50%,#fbe0d4 100%); --panel: #fffaf5; --box: #ffffff; --btn: #f7ede4; --border: #e6d3c4;
+      --text: #2a1424; --title: #7a3a16; --tagline: #c2581c; --dim: #8a7090; --t2: #6e5a66; --t3: #8f7c86; --t4: #b8a8b0; --gold: #b58900;
+      --green-bg: #e3f7ea; --red-bg: #ffe4ea; --red-border: #f5b5c2; --gold-bg: #fff6d6; --shadow: rgba(80,40,20,0.18); }
+    :root[data-theme="light"] .stars { display: none; }
+    :root[data-theme="light"] .fire-glow { opacity: 0.45; }
+    body { background: var(--bg); color: var(--text); font-family: 'Fredoka', 'Trebuchet MS', sans-serif; -webkit-tap-highlight-color: transparent; }
     @keyframes shake {
       0%,100% { transform: translateX(0) rotate(0deg); }
       20% { transform: translateX(-7px) rotate(-2deg); }
@@ -42,6 +50,7 @@
     .stars { position:fixed; inset:0; pointer-events:none; z-index:0; background-image: radial-gradient(1px 1px at 10% 12%, #fff8, transparent), radial-gradient(1px 1px at 30% 6%, #fff6, transparent), radial-gradient(1.5px 1.5px at 55% 15%, #fff9, transparent), radial-gradient(1px 1px at 72% 8%, #fff6, transparent), radial-gradient(1px 1px at 88% 18%, #fff8, transparent), radial-gradient(1px 1px at 20% 28%, #fff4, transparent), radial-gradient(1px 1px at 80% 30%, #fff5, transparent); }
     #app > div > * { position: relative; z-index: 1; }
   </style>
+  <script src="../theme.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -277,12 +286,12 @@ function Dialog({ icon, title, message, confirmLabel, confirmColor, cancelLabel,
   const cc = confirmColor || "#ff6b35";
   return (
     <div onClick={onCancel} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", backdropFilter:"blur(5px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background:"#1c1326", border:`2px solid ${cc}`, borderRadius:18, padding:"28px 24px 22px", width:"100%", maxWidth:320, boxShadow:`0 0 50px ${cc}44`, textAlign:"center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"var(--panel)", border:`2px solid ${cc}`, borderRadius:18, padding:"28px 24px 22px", width:"100%", maxWidth:320, boxShadow:`0 0 50px ${cc}44`, textAlign:"center" }}>
         {icon && <div style={{ fontSize:38, marginBottom:12 }}>{icon}</div>}
-        <div style={{ fontSize:15, fontWeight:900, color:"#fff", letterSpacing:1, marginBottom:10 }}>{title}</div>
-        <div style={{ fontSize:12, color:"#666", lineHeight:1.75, marginBottom:24 }}>{message}</div>
+        <div style={{ fontSize:15, fontWeight:900, color:"var(--text)", letterSpacing:1, marginBottom:10 }}>{title}</div>
+        <div style={{ fontSize:12, color:"var(--t3)", lineHeight:1.75, marginBottom:24 }}>{message}</div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={onCancel} style={{ flex:1, background:"transparent", color:"#666", border:"1px solid #3d2c48", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer" }}>{cancelLabel}</button>
+          <button onClick={onCancel} style={{ flex:1, background:"transparent", color:"var(--t3)", border:"1px solid var(--border)", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer" }}>{cancelLabel}</button>
           <button onClick={onConfirm} style={{ flex:1, background:cc, color: cc==="#f1c40f"?"#000":"#fff", border:"none", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", boxShadow:`0 0 16px ${cc}55` }}>{confirmLabel}</button>
         </div>
       </div>
@@ -293,7 +302,7 @@ function Dialog({ icon, title, message, confirmLabel, confirmColor, cancelLabel,
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message, type, action, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, action ? 5000 : 3200); return () => clearTimeout(t); }, [message]);
-  const s = type==="forgot" ? { bg:"#590d22", border:"#ff4d6d", color:"#ff4d6d" } : { bg:"#0a2e1a", border:"#2ecc71", color:"#2ecc71" };
+  const s = type==="forgot" ? { bg:"var(--red-bg)", border:"#ff4d6d", color:"#ff4d6d" } : { bg:"var(--green-bg)", border:"#2ecc71", color:"#2ecc71" };
   return (
     <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", background:s.bg, border:`2px solid ${s.border}`, borderRadius:12, padding:"13px 22px", color:s.color, fontFamily:"inherit", fontWeight:"bold", fontSize:13, zIndex:400, boxShadow:`0 0 30px ${s.border}44`, animation:"toastIn 0.3s ease", maxWidth:"88vw", textAlign:"center", lineHeight:1.5 }}>
       {message}
@@ -318,9 +327,9 @@ function Tips({ cards, numbers, sum, t }) {
   }
   if (forgotC) lines.push(t.tipForgot(forgotC));
   return (
-    <div style={{ width:"100%", maxWidth:300, marginBottom:14, background:"#14141c", border:"1px solid #3d2c48", borderLeft:"3px solid #f1c40f", borderRadius:12, padding:"12px 14px" }}>
-      <div style={{ fontSize:11, color:"#f1c40f", letterSpacing:2, textTransform:"uppercase", marginBottom:6 }}>{t.tipsTitle}</div>
-      {lines.map((l,k) => <div key={k} style={{ fontSize:11, color:"#999", lineHeight:1.7 }}>{l}</div>)}
+    <div style={{ width:"100%", maxWidth:300, marginBottom:14, background:"var(--box)", border:"1px solid var(--border)", borderLeft:"3px solid #f1c40f", borderRadius:12, padding:"12px 14px" }}>
+      <div style={{ fontSize:11, color:"var(--gold)", letterSpacing:2, textTransform:"uppercase", marginBottom:6 }}>{t.tipsTitle}</div>
+      {lines.map((l,k) => <div key={k} style={{ fontSize:11, color:"var(--t2)", lineHeight:1.7 }}>{l}</div>)}
     </div>
   );
 }
@@ -330,19 +339,19 @@ function History({ history, onAskClear, t }) {
   const total = history.reduce((a,r) => a + r.sum, 0);
   const avg = history.length ? Math.round(total / history.length * 10) / 10 : 0;
   return (
-    <div style={{ width:"100%", maxWidth:300, marginTop:14, background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:"14px" }}>
-      <div style={{ fontSize:11, color:"#aaa", letterSpacing:2, textTransform:"uppercase", marginBottom:8 }}>{t.history}</div>
-      {!history.length ? <div style={{ fontSize:11, color:"#444" }}>{t.historyEmpty}</div> : <>
-        <div style={{ fontSize:11, color:"#f1c40f", marginBottom:8 }}>{t.historyStats(history.length, fmtSigned(total), avg)}</div>
+    <div style={{ width:"100%", maxWidth:300, marginTop:14, background:"var(--box)", border:"1px solid var(--border)", borderRadius:12, padding:"14px" }}>
+      <div style={{ fontSize:11, color:"var(--t2)", letterSpacing:2, textTransform:"uppercase", marginBottom:8 }}>{t.history}</div>
+      {!history.length ? <div style={{ fontSize:11, color:"var(--t4)" }}>{t.historyEmpty}</div> : <>
+        <div style={{ fontSize:11, color:"var(--gold)", marginBottom:8 }}>{t.historyStats(history.length, fmtSigned(total), avg)}</div>
         <div style={{ maxHeight:180, overflowY:"auto" }}>
           {history.map((r,k) => ({ r, n: k+1 })).reverse().map(({ r, n }) => (
-            <div key={n} style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#777", padding:"4px 0", borderTop:"1px solid #1f1f28" }}>
+            <div key={n} style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"var(--t3)", padding:"4px 0", borderTop:"1px solid var(--border)" }}>
               <span>{t.roundLabel(n)} · {MODES[r.mode] ? MODES[r.mode].label : r.mode}</span>
-              <span style={{ color: r.sum>0?"#ff6b35":r.sum<0?"#2ecc71":"#666", fontWeight:900 }}>{fmtSigned(r.sum)}</span>
+              <span style={{ color: r.sum>0?"#ff6b35":r.sum<0?"#2ecc71":"var(--t3)", fontWeight:900 }}>{fmtSigned(r.sum)}</span>
             </div>
           ))}
         </div>
-        <button onClick={onAskClear} style={{ marginTop:10, width:"100%", background:"transparent", color:"#555", border:"1px solid #3d2c48", borderRadius:8, padding:"8px 0", fontSize:11, fontFamily:"inherit", cursor:"pointer" }}>{t.clearHistory}</button>
+        <button onClick={onAskClear} style={{ marginTop:10, width:"100%", background:"transparent", color:"var(--t3)", border:"1px solid var(--border)", borderRadius:8, padding:"8px 0", fontSize:11, fontFamily:"inherit", cursor:"pointer" }}>{t.clearHistory}</button>
       </>}
     </div>
   );
@@ -361,25 +370,25 @@ function SettingsPanel({ forgetChance: savedChance, lang: savedLang, onSave, mod
   return (
     <>
       <Backdrop onClick={onClose} zIndex={100} />
-      <div style={{ position:"fixed", top:0, right:0, zIndex:101, background:"#1c1326", border:"2px solid #ff6b35", borderRadius:"0 0 0 16px", padding:"20px 20px 28px", width:300, maxHeight:"100vh", overflowY:"auto", boxShadow:"-10px 10px 40px rgba(0,0,0,0.7)" }}>
+      <div style={{ position:"fixed", top:0, right:0, zIndex:101, background:"var(--panel)", border:"2px solid #ff6b35", borderRadius:"0 0 0 16px", padding:"20px 20px 28px", width:300, maxHeight:"100vh", overflowY:"auto", boxShadow:"-10px 10px 40px var(--shadow)" }}>
 
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ fontSize:18 }}>⚙️</span>
             <span style={{ color:"#ff6b35", fontSize:12, letterSpacing:3, textTransform:"uppercase" }}>{t.settings}</span>
           </div>
-          <div onClick={onClose} style={{ color:"#555", fontSize:20, cursor:"pointer" }}>✕</div>
+          <div onClick={onClose} style={{ color:"var(--t3)", fontSize:20, cursor:"pointer" }}>✕</div>
         </div>
 
         {/* Language */}
-        <div style={{ background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:16, marginBottom:12 }}>
-          <div style={{ color:"#aaa", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.language}</div>
+        <div style={{ background:"var(--box)", border:"1px solid var(--border)", borderRadius:12, padding:16, marginBottom:12 }}>
+          <div style={{ color:"var(--t2)", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.language}</div>
           <div style={{ display:"flex", gap:8 }}>
             {[["de","🇩🇪 Deutsch"],["en","🇬🇧 English"]].map(([key, label]) => {
               const active = lang === key;
               return (
-                <div key={key} onClick={() => onChangeLang(key)} style={{ flex:1, background:active?"#1a1000":"#2a1e36", border:`2px solid ${active?"#f1c40f":"#3d2c48"}`, borderRadius:10, padding:"10px 8px", cursor:"pointer", textAlign:"center", boxShadow:active?"0 0 14px rgba(241,196,15,0.2)":"none" }}>
-                  <div style={{ fontSize:12, fontWeight:900, color:active?"#f1c40f":"#ccc" }}>{label}</div>
+                <div key={key} onClick={() => onChangeLang(key)} style={{ flex:1, background:active?"var(--gold-bg)":"var(--btn)", border:`2px solid ${active?"#f1c40f":"var(--border)"}`, borderRadius:10, padding:"10px 8px", cursor:"pointer", textAlign:"center", boxShadow:active?"0 0 14px rgba(241,196,15,0.2)":"none" }}>
+                  <div style={{ fontSize:12, fontWeight:900, color:active?"var(--gold)":"var(--t2)" }}>{label}</div>
                 </div>
               );
             })}
@@ -387,40 +396,40 @@ function SettingsPanel({ forgetChance: savedChance, lang: savedLang, onSave, mod
         </div>
 
         {/* Game Mode */}
-        <div style={{ background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:16, marginBottom:12 }}>
-          <div style={{ color:"#aaa", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.gameMode}</div>
+        <div style={{ background:"var(--box)", border:"1px solid var(--border)", borderRadius:12, padding:16, marginBottom:12 }}>
+          <div style={{ color:"var(--t2)", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.gameMode}</div>
           {Object.entries(MODES).map(([key, m]) => {
             const active = mode === key;
             return (
-              <div key={key} onClick={() => onChangeMode(key)} style={{ background:active?"#1a1a00":"#2a1e36", border:`2px solid ${active?"#f1c40f":"#3d2c48"}`, borderRadius:10, padding:"12px 14px", marginBottom:8, cursor:"pointer", boxShadow:active?"0 0 14px rgba(241,196,15,0.2)":"none" }}>
+              <div key={key} onClick={() => onChangeMode(key)} style={{ background:active?"var(--gold-bg)":"var(--btn)", border:`2px solid ${active?"#f1c40f":"var(--border)"}`, borderRadius:10, padding:"12px 14px", marginBottom:8, cursor:"pointer", boxShadow:active?"0 0 14px rgba(241,196,15,0.2)":"none" }}>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                   <div>
-                    <div style={{ fontSize:13, fontWeight:900, color:active?"#f1c40f":"#ccc", letterSpacing:1 }}>{m.label}</div>
-                    <div style={{ fontSize:10, color:"#555", marginTop:3 }}>{t.modeSub[key]}</div>
+                    <div style={{ fontSize:13, fontWeight:900, color:active?"var(--gold)":"var(--t2)", letterSpacing:1 }}>{m.label}</div>
+                    <div style={{ fontSize:10, color:"var(--t3)", marginTop:3 }}>{t.modeSub[key]}</div>
                   </div>
-                  <div style={{ width:18, height:18, borderRadius:"50%", border:`2px solid ${active?"#f1c40f":"#333"}`, background:active?"#f1c40f":"transparent", flexShrink:0 }} />
+                  <div style={{ width:18, height:18, borderRadius:"50%", border:`2px solid ${active?"#f1c40f":"var(--t4)"}`, background:active?"#f1c40f":"transparent", flexShrink:0 }} />
                 </div>
               </div>
             );
           })}
-          <div style={{ fontSize:10, color:"#333", textAlign:"center" }}>{t.modeSwitchHint}</div>
+          <div style={{ fontSize:10, color:"var(--t4)", textAlign:"center" }}>{t.modeSwitchHint}</div>
         </div>
 
         {/* Forgetfulness */}
-        <div style={{ background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:16 }}>
-          <div style={{ color:"#aaa", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.forgetLabel}</div>
+        <div style={{ background:"var(--box)", border:"1px solid var(--border)", borderRadius:12, padding:16 }}>
+          <div style={{ color:"var(--t2)", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>{t.forgetLabel}</div>
           <div style={{ fontSize:52, fontWeight:900, color:sc, textAlign:"center", lineHeight:1, marginBottom:4, textShadow:`0 0 20px ${sc}66` }}>{pct}%</div>
-          <div style={{ fontSize:10, color:"#555", textAlign:"center", marginBottom:16 }}>{lbl}</div>
-          <input type="range" min={0} max={100} step={1} value={pct} onChange={e => onChangeChance(Number(e.target.value)/100)} className="forget-slider" style={{ background:`linear-gradient(to right,${sc} ${pct}%,#3d2c48 ${pct}%)` }} />
+          <div style={{ fontSize:10, color:"var(--t3)", textAlign:"center", marginBottom:16 }}>{lbl}</div>
+          <input type="range" min={0} max={100} step={1} value={pct} onChange={e => onChangeChance(Number(e.target.value)/100)} className="forget-slider" style={{ background:`linear-gradient(to right,${sc} ${pct}%,var(--border) ${pct}%)` }} />
           <div style={{ display:"flex", gap:6 }}>
             {[0,25,50,75,100].map(p => (
-              <button key={p} onClick={() => onChangeChance(p/100)} style={{ flex:1, background:pct===p?"#ff6b35":"#2a1e36", color:pct===p?"#000":"#555", border:`1px solid ${pct===p?"#ff6b35":"#3d2c48"}`, borderRadius:6, padding:"6px 0", fontSize:10, fontFamily:"inherit", fontWeight:900, cursor:"pointer" }}>{p}%</button>
+              <button key={p} onClick={() => onChangeChance(p/100)} style={{ flex:1, background:pct===p?"#ff6b35":"var(--btn)", color:pct===p?"#000":"var(--t3)", border:`1px solid ${pct===p?"#ff6b35":"var(--border)"}`, borderRadius:6, padding:"6px 0", fontSize:10, fontFamily:"inherit", fontWeight:900, cursor:"pointer" }}>{p}%</button>
             ))}
           </div>
         </div>
-        <div style={{ marginTop:14, fontSize:10, color:"#333", textAlign:"center", lineHeight:1.7 }}>{t.forgetHint}</div>
+        <div style={{ marginTop:14, fontSize:10, color:"var(--t4)", textAlign:"center", lineHeight:1.7 }}>{t.forgetHint}</div>
 
-        <button onClick={() => dirty && onSave(lang, forgetChance)} style={{ width:"100%", marginTop:16, background:dirty?"#2ecc71":"#0a2e1a", color:dirty?"#000":"#2ecc7188", border:"2px solid #2ecc71", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:dirty?"pointer":"default", letterSpacing:1, boxShadow:dirty?"0 0 16px rgba(46,204,113,0.4)":"none" }}>
+        <button onClick={() => dirty && onSave(lang, forgetChance)} style={{ width:"100%", marginTop:16, background:dirty?"#2ecc71":"var(--green-bg)", color:dirty?"#000":"#2ecc7188", border:"2px solid #2ecc71", borderRadius:10, padding:"12px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:dirty?"pointer":"default", letterSpacing:1, boxShadow:dirty?"0 0 16px rgba(46,204,113,0.4)":"none" }}>
           {dirty ? t.saveSettings : t.settingsUpToDate}
         </button>
         {dirty && <div style={{ marginTop:8, fontSize:10, color:"#ff6b35", textAlign:"center", lineHeight:1.6 }}>{t.unsavedHint}</div>}
@@ -441,13 +450,13 @@ function CardModal({ index, currentValue, numbers, onSave, onRemove, onClose, t 
   return (
     <>
       <Backdrop onClick={onClose} zIndex={100} />
-      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", zIndex:101, background:"#1c1326", border:"2px solid #ff6b35", borderRadius:"20px 20px 0 0", padding:"20px 16px 40px", width:"100%", maxWidth:440, boxShadow:"0 -20px 60px rgba(255,107,53,0.2)" }}>
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", zIndex:101, background:"var(--panel)", border:"2px solid #ff6b35", borderRadius:"20px 20px 0 0", padding:"20px 16px 40px", width:"100%", maxWidth:440, boxShadow:"0 -20px 60px rgba(255,107,53,0.2)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <span style={{ color:"#ff6b35", fontSize:12, letterSpacing:4, textTransform:"uppercase" }}>{t.cardTitle(index)}</span>
-          <span onClick={onClose} style={{ color:"#555", fontSize:20, cursor:"pointer" }}>✕</span>
+          <span onClick={onClose} style={{ color:"var(--t3)", fontSize:20, cursor:"pointer" }}>✕</span>
         </div>
 
-        <button onClick={toggleFix} style={{ width:"100%", marginBottom:12, background:fixMode?"#0a2e10":"#2a1e36", color:fixMode?"#2ecc71":"#555", border:fixMode?"2px solid #2ecc71":"2px solid #3d2c48", borderRadius:10, padding:"11px 0", fontFamily:"inherit", fontWeight:900, fontSize:14, cursor:"pointer", letterSpacing:2, boxShadow:fixMode?"0 0 14px rgba(46,204,113,0.3)":"none" }}>
+        <button onClick={toggleFix} style={{ width:"100%", marginBottom:12, background:fixMode?"var(--green-bg)":"var(--btn)", color:fixMode?"#2ecc71":"var(--t3)", border:fixMode?"2px solid #2ecc71":"2px solid var(--border)", borderRadius:10, padding:"11px 0", fontFamily:"inherit", fontWeight:900, fontSize:14, cursor:"pointer", letterSpacing:2, boxShadow:fixMode?"0 0 14px rgba(46,204,113,0.3)":"none" }}>
           🔒 FIX {fixMode?t.fixOn:t.fixOff} — {fixMode?t.fixOnDesc:t.fixOffDesc}
         </button>
 
@@ -460,8 +469,8 @@ function CardModal({ index, currentValue, numbers, onSave, onRemove, onClose, t 
           })}
         </div>
 
-        <button onClick={() => onSave(null)} style={{ width:"100%", marginBottom:8, background:"transparent", color:"#555", border:"1px solid #3d2c48", borderRadius:8, padding:"10px 0", fontSize:12, fontFamily:"inherit", cursor:"pointer", letterSpacing:1 }}>{t.clearCard}</button>
-        <button onClick={() => onRemove(index)} style={{ width:"100%", background:"#1a0505", color:"#ff4d6d", border:"1px solid #4a1010", borderRadius:8, padding:"10px 0", fontSize:12, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:1 }}>{t.removeField}</button>
+        <button onClick={() => onSave(null)} style={{ width:"100%", marginBottom:8, background:"transparent", color:"var(--t3)", border:"1px solid var(--border)", borderRadius:8, padding:"10px 0", fontSize:12, fontFamily:"inherit", cursor:"pointer", letterSpacing:1 }}>{t.clearCard}</button>
+        <button onClick={() => onRemove(index)} style={{ width:"100%", background:"var(--red-bg)", color:"#ff4d6d", border:"1px solid var(--red-border)", borderRadius:8, padding:"10px 0", fontSize:12, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:1 }}>{t.removeField}</button>
       </div>
     </>
   );
@@ -474,7 +483,7 @@ function GapSlot() {
 
 function PlusSlot({ onClick }) {
   return (
-    <div onClick={onClick} style={{ aspectRatio:"2/3", borderRadius:10, border:"2px dashed #2ecc71", background:"#0a2010", display:"flex", alignItems:"center", justifyContent:"center", color:"#2ecc71", fontSize:30, fontWeight:900, cursor:"pointer", boxShadow:"0 0 14px rgba(46,204,113,0.25)", userSelect:"none" }}>＋</div>
+    <div onClick={onClick} style={{ aspectRatio:"2/3", borderRadius:10, border:"2px dashed #2ecc71", background:"var(--green-bg)", display:"flex", alignItems:"center", justifyContent:"center", color:"#2ecc71", fontSize:30, fontWeight:900, cursor:"pointer", boxShadow:"0 0 14px rgba(46,204,113,0.25)", userSelect:"none" }}>＋</div>
   );
 }
 
@@ -810,17 +819,17 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#0f0a24 0%,#1c1236 45%,#2a1424 100%)", overflow:"hidden", display:"flex", flexDirection:"column", alignItems:"center", padding:"28px 20px 48px", position:"relative" }}>
+    <div style={{ minHeight:"100vh", background:"var(--page)", overflow:"hidden", display:"flex", flexDirection:"column", alignItems:"center", padding:"28px 20px 48px", position:"relative" }}>
 
       {/* Campfire night backdrop */}
       <div className="stars" style={{ position:"fixed", zIndex:0 }} />
       <div className="fire-glow" style={{ position:"fixed", zIndex:0 }} />
 
       {/* Zurück zum Startmenü der gemeinsamen App */}
-      <button aria-label="Startmenü" onClick={()=>{ location.href="../"; }} style={{ position:"absolute", top:20, left:20, background:"transparent", border:"1px solid #3d2c48", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20, zIndex:2 }}>🏠</button>
+      <button aria-label="Startmenü" onClick={()=>{ location.href="../"; }} style={{ position:"absolute", top:20, left:20, background:"transparent", border:"1px solid var(--border)", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20, zIndex:2 }}>🏠</button>
 
       {/* Gear */}
-      <button className="gear-btn" onClick={()=>setShowSettings(true)} style={{ position:"absolute", top:20, right:20, background:"transparent", border:"1px solid #3d2c48", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20 }}>⚙️</button>
+      <button className="gear-btn" onClick={()=>setShowSettings(true)} style={{ position:"absolute", top:20, right:20, background:"transparent", border:"1px solid var(--border)", borderRadius:8, width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:20 }}>⚙️</button>
 
       {/* Header */}
       <div style={{ textAlign:"center", marginBottom:10 }}>
@@ -829,11 +838,11 @@ function App() {
           <div style={{ fontSize:30 }} className="flame">🔥</div>
           <div style={{ transform:"rotate(12deg)", fontSize:11 }}><Marshmallow n={5} size={30} /></div>
         </div>
-        <div style={{ fontSize:11, letterSpacing:4, color:"#ffb27a", textTransform:"uppercase", marginBottom:2 }}>{t.tagline}</div>
-        <h1 style={{ fontSize:34, fontWeight:700, color:"#fff4e6", margin:0, letterSpacing:1, textShadow:"0 2px 0 #c97a3d, 0 4px 0 #7a4526, 0 0 24px rgba(255,140,60,0.45)" }}>ARSCHMALLOWS</h1>
+        <div style={{ fontSize:11, letterSpacing:4, color:"var(--tagline)", textTransform:"uppercase", marginBottom:2 }}>{t.tagline}</div>
+        <h1 style={{ fontSize:34, fontWeight:700, color:"var(--title)", margin:0, letterSpacing:1, textShadow:"0 2px 0 #c97a3d, 0 4px 0 #7a4526, 0 0 24px rgba(255,140,60,0.45)" }}>ARSCHMALLOWS</h1>
         <div style={{ display:"inline-block", fontSize:11, color:"#2a1424", background:"#ffb6d9", borderRadius:20, padding:"2px 12px", marginTop:8, fontWeight:700, letterSpacing:1 }}>{MODES[mode].label.toUpperCase()}</div>
-        <div style={{ fontSize:11, color:"#9a86a8", marginTop:6, letterSpacing:1 }}>{slots} {t.statTotal}</div>
-        <div style={{ fontSize:11, color:"#9a86a8", marginTop:2 }}>
+        <div style={{ fontSize:11, color:"var(--dim)", marginTop:6, letterSpacing:1 }}>{slots} {t.statTotal}</div>
+        <div style={{ fontSize:11, color:"var(--dim)", marginTop:2 }}>
           {t.forgetLabel}: <span style={{ color:pct===0?"#2ecc71":pct<40?"#f1c40f":"#ff4d6d" }}>{pct}%</span>
         </div>
       </div>
@@ -841,12 +850,12 @@ function App() {
       {/* Stats */}
       <div style={{ display:"flex", gap:14, marginBottom:20, flexWrap:"wrap", justifyContent:"center", fontSize:11 }}>
         <span style={{color:"#ff6b35"}}>✓ {filled} {t.statFilled}</span>
-        <span style={{color:"#333"}}>·</span>
+        <span style={{color:"var(--t4)"}}>·</span>
         <span style={{color:"#2ecc71"}}>🔒 {fixedC} {t.statFix}</span>
-        <span style={{color:"#333"}}>·</span>
+        <span style={{color:"var(--t4)"}}>·</span>
         <span style={{color:"#ff4d6d"}}>💨 {forgotC} {t.statForgot}</span>
-        <span style={{color:"#333"}}>·</span>
-        <span style={{color:"#444"}}>○ {slots-filled-fixedC-forgotC} {t.statEmpty} · {slots} {t.statTotal}</span>
+        <span style={{color:"var(--t4)"}}>·</span>
+        <span style={{color:"var(--t4)"}}>○ {slots-filled-fixedC-forgotC} {t.statEmpty} · {slots} {t.statTotal}</span>
       </div>
 
       {/* Grid */}
@@ -856,19 +865,19 @@ function App() {
       {placeMode && <div style={{ fontSize:11, color:"#2ecc71", textAlign:"center", marginBottom:14 }}>{t.placeHint}</div>}
 
       {/* Hint */}
-      <div style={{ fontSize:11, color:"#3a3a4a", textAlign:"center", marginBottom:14, lineHeight:1.9 }}>
+      <div style={{ fontSize:11, color:"var(--t4)", textAlign:"center", marginBottom:14, lineHeight:1.9 }}>
         {t.tapHint}<br/>
         <span style={{color:"#2ecc7166"}}>{t.fixHint}</span><br/>
         <span style={{color:"#ff4d6d44"}}>{t.chanceHint(pct)}</span>
       </div>
 
       {/* Add card */}
-      <button onClick={()=>setPlaceMode(p=>!p)} style={{ background:"#2a1e36", color:placeMode?"#888":"#ff6b35", border:`2px dashed ${placeMode?"#444":"#ff6b35"}`, borderRadius:10, padding:"11px 28px", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:2, marginBottom:10, width:"100%", maxWidth:300 }}>{placeMode ? t.placeCancel : t.addCard}</button>
+      <button onClick={()=>setPlaceMode(p=>!p)} style={{ background:"var(--btn)", color:placeMode?"var(--t3)":"#ff6b35", border:`2px dashed ${placeMode?"var(--t4)":"#ff6b35"}`, borderRadius:10, padding:"11px 28px", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:2, marginBottom:10, width:"100%", maxWidth:300 }}>{placeMode ? t.placeCancel : t.addCard}</button>
 
       {/* Sum */}
-      <div style={{ width:"100%", maxWidth:300, marginBottom:14, background:"#221830", border:"1px solid #3d2c48", borderRadius:12, padding:"14px 0", textAlign:"center" }}>
-        <div style={{ fontSize:11, color:"#555", letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>{t.sum}</div>
-        <div style={{ fontSize:36, fontWeight:900, fontFamily:"inherit", color: sum>0?"#ff6b35":sum<0?"#ff4d6d":"#666", textShadow: sum!==0?`0 0 20px ${sum>0?"rgba(255,107,53,0.4)":"rgba(255,77,109,0.4)"}`:""  }}>
+      <div style={{ width:"100%", maxWidth:300, marginBottom:14, background:"var(--box)", border:"1px solid var(--border)", borderRadius:12, padding:"14px 0", textAlign:"center" }}>
+        <div style={{ fontSize:11, color:"var(--t3)", letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>{t.sum}</div>
+        <div style={{ fontSize:36, fontWeight:900, fontFamily:"inherit", color: sum>0?"#ff6b35":sum<0?"#ff4d6d":"var(--t3)", textShadow: sum!==0?`0 0 20px ${sum>0?"rgba(255,107,53,0.4)":"rgba(255,77,109,0.4)"}`:""  }}>
           {sum>0?"+":""}{sum}
         </div>
       </div>
@@ -876,15 +885,15 @@ function App() {
       <Tips cards={cards} numbers={numbers} sum={sum} t={t} />
 
       {/* Save round */}
-      <button onClick={askRound} style={{ background:"#0a2e1a", color:"#2ecc71", border:"2px solid #2ecc71", borderRadius:10, padding:"11px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:2, marginBottom:10, width:"100%", maxWidth:300 }}>{t.saveRound}</button>
+      <button onClick={askRound} style={{ background:"var(--green-bg)", color:"#2ecc71", border:"2px solid #2ecc71", borderRadius:10, padding:"11px 0", fontSize:13, fontFamily:"inherit", fontWeight:900, cursor:"pointer", letterSpacing:2, marginBottom:10, width:"100%", maxWidth:300 }}>{t.saveRound}</button>
 
       {/* Reset */}
-      <button onClick={askReset} style={{ background:"transparent", color:"#444", border:"1px solid #3d2c48", borderRadius:8, padding:"9px 22px", fontSize:12, fontFamily:"inherit", cursor:"pointer", letterSpacing:1 }}>{t.newGame}</button>
+      <button onClick={askReset} style={{ background:"transparent", color:"var(--t4)", border:"1px solid var(--border)", borderRadius:8, padding:"9px 22px", fontSize:12, fontFamily:"inherit", cursor:"pointer", letterSpacing:1 }}>{t.newGame}</button>
 
       <History history={history} onAskClear={askClearHistory} t={t} />
 
-      <div style={{ marginTop:14, fontSize:10, color:"#333", textAlign:"center" }}>{t.savedHint}</div>
-      <div style={{ marginTop:14, fontSize:10, color:"#222", textAlign:"center" }}>{t.footer}</div>
+      <div style={{ marginTop:14, fontSize:10, color:"var(--t4)", textAlign:"center" }}>{t.savedHint}</div>
+      <div style={{ marginTop:14, fontSize:10, color:"var(--t4)", textAlign:"center" }}>{t.footer}</div>
 
       {/* Overlays */}
       {showSettings && <SettingsPanel forgetChance={forgetChance} lang={lang} onSave={saveSettings} mode={mode} onChangeMode={askMode} onClose={()=>setShowSettings(false)} />}
