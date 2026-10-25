@@ -39,6 +39,7 @@
     /* nur Deckkraft: ein transform würde die fixierte Leiste unten während der Animation verschieben */
     @keyframes pop { from { opacity: 0; } to { opacity: 1; } }
     .pop { animation: pop 0.2s ease; }
+    summary::-webkit-details-marker { display: none; }
     .block-table { border-collapse: separate; border-spacing: 0; font-size: 14px; }
     .block-table th, .block-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--row); white-space: nowrap; }
     .block-table th { position: sticky; top: 0; background: var(--card); font-weight: 600; }
@@ -575,6 +576,7 @@ function GameView({ game, onBack, onOpenRound, onDelete, justFinished, onEndSeen
           <Section title="Punkte" footer="Richtig angesagt: 20 Punkte + 10 pro Stich. Daneben: −10 Punkte pro Stich Abweichung.">
             <Row last><span style={{ flex: 1 }}>Bombe 💣 / Wolke ☁️</span><span style={{ color: C.dim }}>{EDITIONS[game.edition].specials ? "an" : "aus"}</span></Row>
           </Section>
+          <GuideSection />
           <BigButton color="#7f1d1d" onClick={() => setConfirmDelete(true)} style={{ width: "100%" }}>Spiel löschen</BigButton>
         </>
       )}
@@ -661,6 +663,84 @@ function ScoreBlock({ game, onOpenRound }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+// ── Spielanleitung (Kurzfassung der Wizard-Regeln, Jubiläumsausgabe) ─────────
+const GUIDE = [
+  { t: "🎯 Ziel des Spiels", b: [
+    "In jeder Runde sagt ihr vorher, wie viele Stiche ihr gewinnen werdet. Wer genau richtig liegt, bekommt Punkte – wer daneben liegt, verliert welche.",
+    "Wer am Ende die meisten Punkte hat, gewinnt. Bei Gleichstand gewinnen alle Gleichplatzierten.",
+  ]},
+  { t: "🧰 Vorbereitung", b: [
+    "Die Karten: 60 Charakterkarten in vier Farben (1–13), dazu je Farbe ein Wizard (W) und ein Narr (N).",
+    "Rundenanzahl: 60 Karten ÷ Spieler – bei 3 Spielern 20 Runden, bei 4 → 15, bei 5 → 12, bei 6 → 10.",
+    "Eine Person gibt in Runde 1, danach wandert das Geben im Uhrzeigersinn weiter. In dieser App: Wer in der Spielerliste ganz unten steht, gibt in Runde 1.",
+  ]},
+  { t: "🃏 1. Karten verteilen & Trumpf", b: [
+    "In Runde 1 bekommt jeder 1 Karte, in Runde 2 zwei Karten usw.",
+    "Die oberste Karte vom Reststapel wird aufgedeckt und bestimmt die Trumpffarbe.",
+    "Ist es ein Wizard, darf der Geber die Trumpffarbe frei wählen. Ist es ein Narr, gibt es keinen Trumpf.",
+    "In der letzten Runde werden alle Karten verteilt – dann gibt es keinen Trumpf.",
+  ]},
+  { t: "🔮 2. Stiche vorhersagen", b: [
+    "Alle schauen in ihre Karten. Links vom Geber beginnend sagt jeder, wie viele Stiche er machen will.",
+    "In der App: Ansagen mit + / − eintragen und „Spielen“ drücken.",
+  ]},
+  { t: "⚔️ 3. Stiche spielen", b: [
+    "Wer links vom Geber sitzt, spielt die erste Karte aus. Alle anderen folgen im Uhrzeigersinn.",
+    "Bedienen: Wer die ausgespielte Farbe hat, muss sie spielen. Nur wer sie nicht hat, darf Trumpf oder eine andere Farbe legen.",
+    "Wizards und Narren dürfen immer gespielt werden, auch wenn man bedienen könnte.",
+    "Wer einen Stich gewinnt, spielt den nächsten aus.",
+  ]},
+  { t: "🏆 Wer gewinnt den Stich?", b: [
+    "1. Der erste Wizard im Stich gewinnt immer.",
+    "2. Sonst die höchste Trumpfkarte.",
+    "3. Sonst die höchste Karte der zuerst ausgespielten Farbe.",
+    "Narren sind niedriger als jede Zahl. Liegen nur Narren im Stich, gewinnt der erste Narr.",
+    "Beginnt ein Stich mit einem Wizard, darf jeder beliebig spielen. Beginnt er mit einem Narren, bestimmt die erste Zahlenkarte die Farbe.",
+  ]},
+  { t: "🧮 4. Punkte", b: [
+    "Richtig vorhergesagt: 20 Punkte + 10 Punkte pro gewonnenem Stich.",
+    "Daneben: −10 Punkte für jeden Stich Abweichung (egal ob zu viel oder zu wenig).",
+    "Beispiel: 2 angesagt, 2 gemacht → 40 Punkte. 2 angesagt, 0 gemacht → −20 Punkte.",
+    "Die App rechnet das automatisch aus, sobald ihr die gemachten Stiche eintragt.",
+  ]},
+  { t: "✨ Sonderkarten (Jubiläumsausgaben)", b: [
+    "Sonderkarten dürfen immer gespielt werden. Startet lieber mit wenigen Sonderkarten; Drache und Fee immer zusammen nehmen.",
+    "🐉 Drache: höchste Karte im Spiel, schlägt sogar Wizards – außer die Fee liegt im selben Stich.",
+    "🧚 Fee: niedriger als ein Narr, gewinnt aber den Stich, wenn der Drache darin liegt.",
+    "💣 Bombe: niemand bekommt den Stich, er zählt für keinen. In der App: „Wurde die Bombe gespielt?“ einschalten.",
+    "☁️ Wolke (Wert 9¾): Wer den Stich mit der Wolke gewinnt, muss seine Ansage um +1 oder −1 ändern. In der App: ☁️ beim Spieler antippen.",
+    "🤹 Jongleur (Wert 7½): Nach dem Stich geben alle gleichzeitig eine Handkarte verdeckt an den linken Nachbarn weiter.",
+    "🐺 Werwolf: Wer ihn hat, tauscht ihn vor den Ansagen gegen die Trumpfkarte und bestimmt den Trumpf neu.",
+    "🎭 Gestaltenwandler: beim Ausspielen entweder Wizard oder Narr – du sagst es an.",
+    "🧙‍♀️ Hexe: Nach dem Stich legst du eine Handkarte hinein und nimmst dir eine beliebige Karte aus dem Stich.",
+    "🧛 Vampir: kopiert die aufgedeckte Trumpfkarte mit all ihren Effekten.",
+    "Wird eine Sonderkarte als Trumpfkarte aufgedeckt, bestimmt meist der Geber den Trumpf (bei Fee, Bombe und Hexe gibt es keinen Trumpf).",
+  ]},
+  { t: "🎲 Varianten", b: [
+    "Plus / Minus: Die Summe aller Ansagen darf nicht der Anzahl der Stiche entsprechen. (In der App als Regel wählbar.)",
+    "Geheime Ansage: Alle sagen verdeckt an, erst danach wird aufgedeckt. (In der App: „Geheimes Ansagen“.)",
+    "Hellsehen (ohne Sonderkarten): In Runde 1 hält jeder seine Karte ungesehen an die Stirn und sieht nur die der anderen.",
+    "Mehr als 6 Spieler: Zwei Decks mit unterschiedlicher Rückseite mischen (z. B. Standard + Junior Edition).",
+  ]},
+];
+
+function GuideSection() {
+  return (
+    <Section title="📖 Spielanleitung">
+      {GUIDE.map((g, i) => (
+        <details key={i} style={{ borderBottom: i === GUIDE.length - 1 ? "none" : `1px solid ${C.line}` }}>
+          <summary style={{ padding: "14px", cursor: "pointer", fontSize: 16, fontWeight: 500, listStyle: "none", display: "flex", alignItems: "center" }}>
+            <span style={{ flex: 1 }}>{g.t}</span><span style={{ color: C.dim }}>▾</span>
+          </summary>
+          <div style={{ padding: "0 14px 14px", color: "#d6d8f5", fontSize: 14, lineHeight: 1.5 }}>
+            {g.b.map((line, j) => <p key={j} style={{ marginTop: j ? 8 : 0 }}>{line}</p>)}
+          </div>
+        </details>
+      ))}
+    </Section>
   );
 }
 
